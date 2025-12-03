@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import * as google from "google.maps"
+import { GoogleMap, LoadScript, Marker, Polyline, InfoWindow } from "@react-google-maps/api"
+import { google } from "google-maps"
 
 interface Location {
   lat: number
@@ -41,72 +42,10 @@ export default function MapComponent({
   onLocationUpdate,
 }: MapComponentProps) {
   const mapRef = useRef<google.maps.Map | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const markersRef = useRef<(google.maps.Marker | google.maps.Polyline)[]>([])
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
-  const currentLocationMarkerRef = useRef<google.maps.Marker | null>(null)
   const watchIdRef = useRef<number | null>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [showReceptionInfo, setShowReceptionInfo] = useState(false)
 
-  // Load Google Maps script
-  useEffect(() => {
-    if (typeof window === "undefined") return
-
-    const loadGoogleMaps = () => {
-      if (window.google && window.google.maps) {
-        setIsLoaded(true)
-        return
-      }
-
-      const script = document.createElement("script")
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8`
-      script.async = true
-      script.defer = true
-      script.onload = () => setIsLoaded(true)
-      document.head.appendChild(script)
-    }
-
-    loadGoogleMaps()
-  }, [])
-
-  // Initialize map
-  useEffect(() => {
-    if (!isLoaded || !containerRef.current || mapRef.current) return
-
-    const map = new google.maps.Map(containerRef.current, {
-      center: { lat: -24.7761, lng: 30.6297 },
-      zoom: 13,
-      mapTypeControl: true,
-      streetViewControl: false,
-      fullscreenControl: true,
-    })
-
-    map.addListener("click", (e: google.maps.MapMouseEvent) => {
-      if (e.latLng) {
-        onMapClick({ lat: e.latLng.lat(), lng: e.latLng.lng() })
-      }
-    })
-
-    // Get user's current location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const pos = { lat: position.coords.latitude, lng: position.coords.longitude }
-          map.setCenter(pos)
-          map.setZoom(18)
-          setCurrentLocation(pos)
-        },
-        () => {
-          console.log("Geolocation failed, using default location")
-        },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
-      )
-    }
-
-    mapRef.current = map
-  }, [isLoaded, onMapClick])
-
-  // Watch position for GPS tracking
   useEffect(() => {
     if (!navigator.geolocation) return
 
@@ -145,127 +84,149 @@ export default function MapComponent({
     }
   }, [isRecording, onLocationUpdate])
 
-  // Update current location marker
   useEffect(() => {
-    if (!mapRef.current || !currentLocation) return
-
-    if (currentLocationMarkerRef.current) {
-      currentLocationMarkerRef.current.setMap(null)
-    }
-
-    const marker = new google.maps.Marker({
-      position: currentLocation,
-      map: mapRef.current,
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: "#4285F4",
-        fillOpacity: 1,
-        strokeColor: "#ffffff",
-        strokeWeight: 3,
-      },
-      title: "Your Location",
-      zIndex: 1000,
-    })
-
-    currentLocationMarkerRef.current = marker
-  }, [currentLocation])
-
-  // Update all markers and roads
-  useEffect(() => {
-    if (!mapRef.current) return
-
-    console.log("[v0] Updating markers - Reception:", reception, "Houses:", houses.length, "Roads:", roads.length)
-
-    // Clear existing markers
-    markersRef.current.forEach((marker) => marker.setMap(null))
-    markersRef.current = []
-
-    if (reception) {
-      console.log("[v0] Adding reception marker at:", reception)
-
-      const receptionMarker = new google.maps.Marker({
-        position: reception,
-        map: mapRef.current,
-        title: "RECEPTION - CLUBHOUSE",
-        label: {
-          text: "R",
-          color: "white",
-          fontSize: "16px",
-          fontWeight: "bold",
-        },
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 20,
-          fillColor: "#FF0000",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 3,
-        },
-        zIndex: 5000,
-      })
-
-      const infoWindow = new google.maps.InfoWindow({
-        content: "<b>RECEPTION - CLUBHOUSE</b><br>Starting Point",
-      })
-      infoWindow.open(mapRef.current, receptionMarker)
-
-      markersRef.current.push(receptionMarker)
-
-      // Center and zoom to reception
+    if (reception && mapRef.current) {
       mapRef.current.setCenter(reception)
       mapRef.current.setZoom(18)
-
-      console.log("[v0] Reception marker added successfully - BIG RED CIRCLE WITH R")
+      setShowReceptionInfo(true)
     }
+  }, [reception])
 
-    houses.forEach((house) => {
-      const marker = new google.maps.Marker({
-        position: house.location,
-        map: mapRef.current!,
-        title: `House ${house.number}`,
-        label: {
-          text: house.number,
-          color: "white",
-          fontSize: "14px",
-          fontWeight: "bold",
-        },
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 15,
-          fillColor: "#2E7D32",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 3,
-        },
-      })
+  const mapCenter = currentLocation || reception || { lat: -24.7761, lng: 30.6297 }
 
-      markersRef.current.push(marker)
-    })
+  return (
+    <LoadScript googleMapsApiKey="AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8">
+      <GoogleMap
+        mapContainerStyle={{ width: "100%", height: "100%", minHeight: "400px" }}
+        center={mapCenter}
+        zoom={15}
+        onClick={(e) => {
+          if (e.latLng) {
+            onMapClick({ lat: e.latLng.lat(), lng: e.latLng.lng() })
+          }
+        }}
+        onLoad={(map) => {
+          mapRef.current = map
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                const pos = { lat: position.coords.latitude, lng: position.coords.longitude }
+                map.setCenter(pos)
+                map.setZoom(18)
+                setCurrentLocation(pos)
+              },
+              () => {
+                console.log("Geolocation failed")
+              },
+              { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
+            )
+          }
+        }}
+        options={{
+          mapTypeControl: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+        }}
+      >
+        {/* Current Location Marker */}
+        {currentLocation && (
+          <Marker
+            position={currentLocation}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: "#4285F4",
+              fillOpacity: 1,
+              strokeColor: "#ffffff",
+              strokeWeight: 3,
+            }}
+            title="Your Location"
+            zIndex={1000}
+          />
+        )}
 
-    roads.forEach((road) => {
-      const polyline = new google.maps.Polyline({
-        path: road.points,
-        strokeColor: "#FF6B6B",
-        strokeWeight: 4,
-        map: mapRef.current!,
-      })
+        {/* Reception Marker - BIG RED CIRCLE */}
+        {reception && (
+          <>
+            <Marker
+              position={reception}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 25,
+                fillColor: "#FF0000",
+                fillOpacity: 1,
+                strokeColor: "#ffffff",
+                strokeWeight: 4,
+              }}
+              label={{
+                text: "R",
+                color: "white",
+                fontSize: "18px",
+                fontWeight: "bold",
+              }}
+              title="RECEPTION - CLUBHOUSE"
+              zIndex={5000}
+              onClick={() => setShowReceptionInfo(true)}
+            />
+            {showReceptionInfo && (
+              <InfoWindow position={reception} onCloseClick={() => setShowReceptionInfo(false)}>
+                <div style={{ padding: "8px" }}>
+                  <strong>RECEPTION - CLUBHOUSE</strong>
+                  <br />
+                  Starting Point
+                </div>
+              </InfoWindow>
+            )}
+          </>
+        )}
 
-      markersRef.current.push(polyline)
-    })
+        {/* House Markers */}
+        {houses.map((house) => (
+          <Marker
+            key={house.id}
+            position={house.location}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 15,
+              fillColor: "#2E7D32",
+              fillOpacity: 1,
+              strokeColor: "#ffffff",
+              strokeWeight: 3,
+            }}
+            label={{
+              text: house.number,
+              color: "white",
+              fontSize: "14px",
+              fontWeight: "bold",
+            }}
+            title={`House ${house.number}`}
+          />
+        ))}
 
-    if (currentRoad.length > 0) {
-      const polyline = new google.maps.Polyline({
-        path: currentRoad,
-        strokeColor: isRecording ? "#00FF00" : "#FFA500",
-        strokeWeight: 5,
-        strokeOpacity: 0.8,
-        map: mapRef.current!,
-      })
+        {/* Roads */}
+        {roads.map((road) => (
+          <Polyline
+            key={road.id}
+            path={road.points}
+            options={{
+              strokeColor: "#FF6B6B",
+              strokeWeight: 4,
+            }}
+          />
+        ))}
 
-      markersRef.current.push(polyline)
-    }
-  }, [reception, houses, roads, currentRoad, isRecording])
-
-  return <div ref={containerRef} className="w-full h-full" style={{ minHeight: "400px", background: "#e5e7eb" }} />
+        {/* Current Road/Path Being Drawn */}
+        {currentRoad.length > 0 && (
+          <Polyline
+            path={currentRoad}
+            options={{
+              strokeColor: isRecording ? "#00FF00" : "#FFA500",
+              strokeWeight: 5,
+              strokeOpacity: 0.8,
+            }}
+          />
+        )}
+      </GoogleMap>
+    </LoadScript>
+  )
 }
