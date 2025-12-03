@@ -25,11 +25,15 @@ interface MapData {
 }
 
 export default function GuestMapComponent({
+  houses,
+  roads,
+  reception,
   selectedHouse,
-  mapData,
 }: {
-  selectedHouse: string
-  mapData: MapData
+  houses: House[]
+  roads: Road[]
+  reception: Location | null
+  selectedHouse: House | null
 }) {
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -67,7 +71,7 @@ export default function GuestMapComponent({
   }, [])
 
   useEffect(() => {
-    if (!mapRef.current || !mapData.reception) return
+    if (!mapRef.current || !reception) return
 
     const map = mapRef.current
     map.eachLayer((layer) => {
@@ -77,7 +81,7 @@ export default function GuestMapComponent({
     })
 
     // Draw roads
-    mapData.roads.forEach((road) => {
+    roads.forEach((road) => {
       if (road.points.length > 1) {
         L.polyline(
           road.points.map((p) => [p.lat, p.lng]),
@@ -97,16 +101,16 @@ export default function GuestMapComponent({
       iconAnchor: [15, 15],
     })
 
-    L.marker([mapData.reception.lat, mapData.reception.lng], {
+    L.marker([reception.lat, reception.lng], {
       icon: receptionIcon,
     }).addTo(map)
 
     // Draw houses
-    mapData.houses.forEach((house) => {
+    houses.forEach((house) => {
       const houseIcon = L.divIcon({
         className: "custom-div-icon",
         html: `<div style="background-color: ${
-          house.number === selectedHouse ? "green" : "red"
+          selectedHouse && house.number === selectedHouse.number ? "green" : "red"
         }; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;">${
           house.number
         }</div>`,
@@ -119,26 +123,23 @@ export default function GuestMapComponent({
       }).addTo(map)
     })
 
-    if (selectedHouse) {
-      const targetHouse = mapData.houses.find((h) => h.number === selectedHouse)
-      if (targetHouse && mapData.reception) {
-        const route = findRoute(mapData.reception, targetHouse.location, mapData.roads)
-        if (route.length > 0) {
-          L.polyline(
-            route.map((p) => [p.lat, p.lng]),
-            {
-              color: "green",
-              weight: 5,
-              opacity: 0.7,
-            },
-          ).addTo(map)
+    if (selectedHouse && reception) {
+      const route = findRoute(reception, selectedHouse.location, roads)
+      if (route.length > 0) {
+        L.polyline(
+          route.map((p) => [p.lat, p.lng]),
+          {
+            color: "green",
+            weight: 5,
+            opacity: 0.7,
+          },
+        ).addTo(map)
 
-          const bounds = L.latLngBounds(route.map((p) => [p.lat, p.lng]))
-          map.fitBounds(bounds, { padding: [50, 50] })
-        }
+        const bounds = L.latLngBounds(route.map((p) => [p.lat, p.lng]))
+        map.fitBounds(bounds, { padding: [50, 50] })
       }
     }
-  }, [mapData, selectedHouse])
+  }, [houses, roads, reception, selectedHouse])
 
   return (
     <div className="relative w-full h-full">
