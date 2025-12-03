@@ -74,7 +74,7 @@ export default function GuestMapComponent({
     if (!mapRef.current || !reception) return
 
     const map = mapRef.current
-    map.eachLayer((layer) => {
+    map.eachLayer((layer: L.Layer) => {
       if (layer instanceof L.Polyline || layer instanceof L.Marker) {
         map.removeLayer(layer)
       }
