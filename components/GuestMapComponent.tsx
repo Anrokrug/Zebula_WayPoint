@@ -206,7 +206,7 @@ function findRoute(start: Location, end: Location, roads: Road[]): Location[] {
       })
     })
 
-    if (!nextPoint) break
+    if (nextPoint === null) continue
 
     visited.add(`${nextPoint.lat},${nextPoint.lng}`)
     route.push(nextPoint)
