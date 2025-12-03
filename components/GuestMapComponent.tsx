@@ -9,42 +9,163 @@ interface Location {
   lng: number
 }
 
+interface Road {
+  points: Location[]
+}
+
 interface House {
-  id: string
   number: string
   location: Location
 }
 
-interface Road {
-  id: string
-  points: Location[]
-}
-
-interface GuestMapComponentProps {
+interface MapData {
+  reception: Location | null
   houses: House[]
   roads: Road[]
-  reception: Location
-  selectedHouse: House | null
+}
+
+export default function GuestMapComponent({
+  selectedHouse,
+  mapData,
+}: {
+  selectedHouse: string
+  mapData: MapData
+}) {
+  const mapRef = useRef<L.Map | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return
+
+    setTimeout(() => {
+      if (!mapContainerRef.current) return
+
+      console.log("[v0] Initializing guest map...")
+
+      const map = L.map(mapContainerRef.current, {
+        center: [-24.0, 29.0],
+        zoom: 15,
+      })
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map)
+
+      mapRef.current = map
+
+      setTimeout(() => {
+        map.invalidateSize()
+      }, 100)
+    }, 100)
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!mapRef.current || !mapData.reception) return
+
+    const map = mapRef.current
+    map.eachLayer((layer) => {
+      if (layer instanceof L.Polyline || layer instanceof L.Marker) {
+        map.removeLayer(layer)
+      }
+    })
+
+    // Draw roads
+    mapData.roads.forEach((road) => {
+      if (road.points.length > 1) {
+        L.polyline(
+          road.points.map((p) => [p.lat, p.lng]),
+          {
+            color: "gray",
+            weight: 3,
+          },
+        ).addTo(map)
+      }
+    })
+
+    // Draw reception
+    const receptionIcon = L.divIcon({
+      className: "custom-div-icon",
+      html: `<div style="background-color: blue; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;">R</div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+    })
+
+    L.marker([mapData.reception.lat, mapData.reception.lng], {
+      icon: receptionIcon,
+    }).addTo(map)
+
+    // Draw houses
+    mapData.houses.forEach((house) => {
+      const houseIcon = L.divIcon({
+        className: "custom-div-icon",
+        html: `<div style="background-color: ${
+          house.number === selectedHouse ? "green" : "red"
+        }; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;">${
+          house.number
+        }</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      })
+
+      L.marker([house.location.lat, house.location.lng], {
+        icon: houseIcon,
+      }).addTo(map)
+    })
+
+    if (selectedHouse) {
+      const targetHouse = mapData.houses.find((h) => h.number === selectedHouse)
+      if (targetHouse && mapData.reception) {
+        const route = findRoute(mapData.reception, targetHouse.location, mapData.roads)
+        if (route.length > 0) {
+          L.polyline(
+            route.map((p) => [p.lat, p.lng]),
+            {
+              color: "green",
+              weight: 5,
+              opacity: 0.7,
+            },
+          ).addTo(map)
+
+          const bounds = L.latLngBounds(route.map((p) => [p.lat, p.lng]))
+          map.fitBounds(bounds, { padding: [50, 50] })
+        }
+      }
+    }
+  }, [mapData, selectedHouse])
+
+  return (
+    <div className="relative w-full h-full">
+      <div ref={mapContainerRef} className="w-full h-full min-h-[400px] rounded-lg" />
+    </div>
+  )
 }
 
 function findRoute(start: Location, end: Location, roads: Road[]): Location[] {
-  if (roads.length === 0) {
-    return [start, end]
-  }
+  const allPoints: Location[] = [start]
+  roads.forEach((road) => {
+    allPoints.push(...road.points)
+  })
+  allPoints.push(end)
 
-  const allPoints: Location[] = []
-  roads.forEach((road) => allPoints.push(...road.points))
-
-  const findNearest = (loc: Location, points: Location[]): Location => {
-    let minDist = Number.POSITIVE_INFINITY
+  const findNearest = (target: Location, points: Location[]): Location => {
     let nearest = points[0]
-    points.forEach((p) => {
-      const dist = Math.sqrt(Math.pow(p.lat - loc.lat, 2) + Math.pow(p.lng - loc.lng, 2))
+    let minDist = Number.POSITIVE_INFINITY
+
+    points.forEach((point) => {
+      const dist = Math.sqrt(Math.pow(point.lat - target.lat, 2) + Math.pow(point.lng - target.lng, 2))
       if (dist < minDist) {
         minDist = dist
-        nearest = p
+        nearest = point
       }
     })
+
     return nearest
   }
 
@@ -52,15 +173,16 @@ function findRoute(start: Location, end: Location, roads: Road[]): Location[] {
   const endNearest = findNearest(end, allPoints)
 
   const route: Location[] = [start, startNearest]
+  const visited = new Set<string>()
+  visited.add(`${start.lat},${start.lng}`)
+  visited.add(`${startNearest.lat},${startNearest.lng}`)
 
   let current = startNearest
-  const visited = new Set<string>()
-  visited.add(`${current.lat},${current.lng}`)
 
-  for (let i = 0; i < 50; i++) {
-    const distance = Math.sqrt(Math.pow(current.lat - endNearest.lat, 2) + Math.pow(current.lng - endNearest.lng, 2))
-
-    if (distance < 0.0001) break
+  for (let i = 0; i < 100; i++) {
+    if (Math.sqrt(Math.pow(current.lat - endNearest.lat, 2) + Math.pow(current.lng - endNearest.lng, 2)) < 0.001) {
+      break
+    }
 
     let nextPoint: Location | null = null
     let minScore = Number.POSITIVE_INFINITY
@@ -94,116 +216,4 @@ function findRoute(start: Location, end: Location, roads: Road[]): Location[] {
   route.push(end)
 
   return route
-}
-
-export default function GuestMapComponent({ houses, roads, reception, selectedHouse }: GuestMapComponentProps) {
-  const mapRef = useRef<L.Map | null>(null)
-  const markersRef = useRef<L.Layer[]>([])
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-
-    const initMap = () => {
-      if (mapRef.current) return
-
-      const mapContainer = containerRef.current
-      if (!mapContainer) {
-        console.log("[v0] Guest map container not found")
-        return
-      }
-
-      try {
-        const map = L.map(mapContainer).setView([reception.lat, reception.lng], 15)
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "© OpenStreetMap contributors",
-          maxZoom: 19,
-        }).addTo(map)
-
-        mapRef.current = map
-        console.log("[v0] Guest map initialized successfully")
-
-        // Force resize after initialization
-        setTimeout(() => {
-          map.invalidateSize()
-        }, 100)
-      } catch (error) {
-        console.error("[v0] Error initializing guest map:", error)
-      }
-    }
-
-    const timeoutId = setTimeout(initMap, 100)
-
-    return () => {
-      clearTimeout(timeoutId)
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
-      }
-    }
-  }, [reception])
-
-  useEffect(() => {
-    if (!mapRef.current) return
-
-    markersRef.current.forEach((marker) => {
-      mapRef.current?.removeLayer(marker)
-    })
-    markersRef.current = []
-
-    const receptionIcon = L.divIcon({
-      className: "custom-icon",
-      html: '<div style="background-color: #1976D2; width: 35px; height: 35px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
-      iconSize: [35, 35],
-      iconAnchor: [17, 35],
-    })
-
-    const receptionMarker = L.marker([reception.lat, reception.lng], { icon: receptionIcon })
-      .bindPopup("<b>Reception - Start Here</b>")
-      .addTo(mapRef.current)
-    markersRef.current.push(receptionMarker)
-
-    houses.forEach((house) => {
-      const isSelected = selectedHouse?.id === house.id
-      const color = isSelected ? "#DC2626" : "#2E7D32"
-
-      const houseIcon = L.divIcon({
-        className: "custom-icon",
-        html: `<div style="background-color: ${color}; width: ${isSelected ? 40 : 30}px; height: ${isSelected ? 40 : 30}px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
-        iconSize: [isSelected ? 40 : 30, isSelected ? 40 : 30],
-        iconAnchor: [isSelected ? 20 : 15, isSelected ? 40 : 30],
-      })
-
-      const marker = L.marker([house.location.lat, house.location.lng], { icon: houseIcon })
-        .bindPopup(`<b>House ${house.number}</b>`)
-        .addTo(mapRef.current!)
-      markersRef.current.push(marker)
-    })
-
-    roads.forEach((road) => {
-      const polyline = L.polyline(
-        road.points.map((p) => [p.lat, p.lng]),
-        { color: "#CCCCCC", weight: 3 },
-      ).addTo(mapRef.current!)
-      markersRef.current.push(polyline)
-    })
-
-    if (selectedHouse) {
-      const route = findRoute(reception, selectedHouse.location, roads)
-      const routeLine = L.polyline(
-        route.map((p) => [p.lat, p.lng]),
-        { color: "#2E7D32", weight: 6, opacity: 0.8 },
-      ).addTo(mapRef.current!)
-      markersRef.current.push(routeLine)
-
-      const bounds = L.latLngBounds([
-        [reception.lat, reception.lng],
-        [selectedHouse.location.lat, selectedHouse.location.lng],
-      ])
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] })
-    }
-  }, [reception, houses, roads, selectedHouse])
-
-  return <div ref={containerRef} className="w-full h-full" style={{ minHeight: "400px", background: "#e5e7eb" }} />
 }
