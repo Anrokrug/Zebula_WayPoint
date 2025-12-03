@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { GoogleMap, LoadScript, Marker, Polyline, InfoWindow } from "@react-google-maps/api"
-import type { google } from "google-maps"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
 
 interface Location {
   lat: number
@@ -41,17 +41,51 @@ export default function MapComponent({
   isRecording = false,
   onLocationUpdate,
 }: MapComponentProps) {
-  const mapRef = useRef<google.maps.Map | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<L.Map | null>(null)
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
   const watchIdRef = useRef<number | null>(null)
-  const [showReceptionInfo, setShowReceptionInfo] = useState(false)
+  const markersRef = useRef<L.Marker[]>([])
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return
+
+    const map = L.map(mapContainerRef.current).setView([-24.7761, 30.6297], 15)
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map)
+
+    map.on("click", (e: L.LeafletMouseEvent) => {
+      onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng })
+    })
+
+    mapRef.current = map
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const pos: Location = { lat: position.coords.latitude, lng: position.coords.longitude }
+          map.setView([pos.lat, pos.lng], 18)
+          setCurrentLocation(pos)
+        },
+        () => console.log("Geolocation failed"),
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
+      )
+    }
+
+    return () => {
+      map.remove()
+    }
+  }, [onMapClick])
 
   useEffect(() => {
     if (!navigator.geolocation) return
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        const newLocation = {
+        const newLocation: Location = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         }
@@ -62,17 +96,11 @@ export default function MapComponent({
         }
 
         if (isRecording && mapRef.current) {
-          mapRef.current.panTo(newLocation)
+          mapRef.current.panTo([newLocation.lat, newLocation.lng])
         }
       },
-      (error) => {
-        console.error("Geolocation error:", error)
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000,
-      },
+      (error) => console.error("Geolocation error:", error),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
     )
 
     watchIdRef.current = watchId
@@ -85,148 +113,85 @@ export default function MapComponent({
   }, [isRecording, onLocationUpdate])
 
   useEffect(() => {
-    if (reception && mapRef.current) {
-      mapRef.current.setCenter(reception)
-      mapRef.current.setZoom(18)
-      setShowReceptionInfo(true)
+    if (!mapRef.current) return
+
+    markersRef.current.forEach((marker) => marker.remove())
+    markersRef.current = []
+
+    if (reception) {
+      const receptionMarker = L.circleMarker([reception.lat, reception.lng], {
+        radius: 12,
+        fillColor: "#FF0000",
+        color: "#FFFFFF",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 1,
+      })
+        .bindPopup("<strong>RECEPTION - CLUBHOUSE</strong><br>Starting Point")
+        .addTo(mapRef.current)
+        .openPopup()
+
+      markersRef.current.push(receptionMarker)
+      mapRef.current.setView([reception.lat, reception.lng], 18)
     }
-  }, [reception])
 
-  const mapCenter = currentLocation || reception || { lat: -24.7761, lng: 30.6297 }
+    if (currentLocation) {
+      const currentMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
+        radius: 8,
+        fillColor: "#4285F4",
+        color: "#FFFFFF",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.9,
+      })
+        .bindPopup("Your Location")
+        .addTo(mapRef.current)
 
-  return (
-    <LoadScript googleMapsApiKey="AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8">
-      <GoogleMap
-        mapContainerStyle={{ width: "100%", height: "100%", minHeight: "400px" }}
-        center={mapCenter}
-        zoom={15}
-        onClick={(e) => {
-          if (e.latLng) {
-            onMapClick({ lat: e.latLng.lat(), lng: e.latLng.lng() })
-          }
-        }}
-        onLoad={(map) => {
-          mapRef.current = map
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
-                const pos = { lat: position.coords.latitude, lng: position.coords.longitude }
-                map.setCenter(pos)
-                map.setZoom(18)
-                setCurrentLocation(pos)
-              },
-              () => {
-                console.log("Geolocation failed")
-              },
-              { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
-            )
-          }
-        }}
-        options={{
-          mapTypeControl: true,
-          streetViewControl: false,
-          fullscreenControl: true,
-        }}
-      >
-        {/* Current Location Marker */}
-        {currentLocation && (
-          <Marker
-            position={currentLocation}
-            icon={{
-              path: "M 0,0 C -2,-20 2,-20 4,0 C 2,20 -2,20 -4,0 Z",
-              scale: 10,
-              fillColor: "#4285F4",
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 3,
-            }}
-            title="Your Location"
-            zIndex={1000}
-          />
-        )}
+      markersRef.current.push(currentMarker)
+    }
 
-        {/* Reception Marker - BIG RED CIRCLE */}
-        {reception && (
-          <>
-            <Marker
-              position={reception}
-              icon={{
-                path: "M 0,0 C -2,-20 2,-20 4,0 C 2,20 -2,20 -4,0 Z",
-                scale: 25,
-                fillColor: "#FF0000",
-                fillOpacity: 1,
-                strokeColor: "#ffffff",
-                strokeWeight: 4,
-              }}
-              label={{
-                text: "R",
-                color: "white",
-                fontSize: "18px",
-                fontWeight: "bold",
-              }}
-              title="RECEPTION - CLUBHOUSE"
-              zIndex={5000}
-              onClick={() => setShowReceptionInfo(true)}
-            />
-            {showReceptionInfo && (
-              <InfoWindow position={reception} onCloseClick={() => setShowReceptionInfo(false)}>
-                <div style={{ padding: "8px" }}>
-                  <strong>RECEPTION - CLUBHOUSE</strong>
-                  <br />
-                  Starting Point
-                </div>
-              </InfoWindow>
-            )}
-          </>
-        )}
+    houses.forEach((house) => {
+      const houseMarker = L.circleMarker([house.location.lat, house.location.lng], {
+        radius: 10,
+        fillColor: "#2E7D32",
+        color: "#FFFFFF",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 1,
+      })
+        .bindPopup(`House ${house.number}`)
+        .addTo(mapRef.current!)
 
-        {/* House Markers */}
-        {houses.map((house) => (
-          <Marker
-            key={house.id}
-            position={house.location}
-            icon={{
-              path: "M 0,0 C -2,-20 2,-20 4,0 C 2,20 -2,20 -4,0 Z",
-              scale: 15,
-              fillColor: "#2E7D32",
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 3,
-            }}
-            label={{
-              text: house.number,
-              color: "white",
-              fontSize: "14px",
-              fontWeight: "bold",
-            }}
-            title={`House ${house.number}`}
-          />
-        ))}
+      const icon = L.divIcon({
+        html: `<div style="color: white; font-size: 10px; font-weight: bold; text-align: center;">${house.number}</div>`,
+        className: "",
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      })
 
-        {/* Roads */}
-        {roads.map((road) => (
-          <Polyline
-            key={road.id}
-            path={road.points}
-            options={{
-              strokeColor: "#FF6B6B",
-              strokeWeight: 4,
-            }}
-          />
-        ))}
+      const labelMarker = L.marker([house.location.lat, house.location.lng], { icon }).addTo(mapRef.current!)
 
-        {/* Current Road/Path Being Drawn */}
-        {currentRoad.length > 0 && (
-          <Polyline
-            path={currentRoad}
-            options={{
-              strokeColor: isRecording ? "#00FF00" : "#FFA500",
-              strokeWeight: 5,
-              strokeOpacity: 0.8,
-            }}
-          />
-        )}
-      </GoogleMap>
-    </LoadScript>
-  )
+      markersRef.current.push(houseMarker, labelMarker)
+    })
+
+    roads.forEach((road) => {
+      if (road.points.length > 1) {
+        const polyline = L.polyline(
+          road.points.map((p) => [p.lat, p.lng]),
+          { color: "#FF6B6B", weight: 3 },
+        ).addTo(mapRef.current!)
+        markersRef.current.push(polyline as any)
+      }
+    })
+
+    if (currentRoad.length > 0) {
+      const currentPolyline = L.polyline(
+        currentRoad.map((p) => [p.lat, p.lng]),
+        { color: isRecording ? "#00FF00" : "#FFA500", weight: 4, opacity: 0.8 },
+      ).addTo(mapRef.current!)
+      markersRef.current.push(currentPolyline as any)
+    }
+  }, [houses, roads, reception, currentRoad, currentLocation, isRecording])
+
+  return <div ref={mapContainerRef} style={{ width: "100%", height: "100%", minHeight: "500px" }} />
 }

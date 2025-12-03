@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { GoogleMap, LoadScript, Marker, Polyline } from "@react-google-maps/api"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
 
 interface Location {
   lat: number
@@ -28,8 +29,27 @@ export default function GuestMapComponent({
   reception: Location | null
   selectedHouse: House | null
 }) {
-  const mapRef = useRef<any | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<L.Map | null>(null)
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
+  const markersRef = useRef<L.Marker[]>([])
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return
+
+    const map = L.map(mapContainerRef.current).setView([-24.0, 29.0], 15)
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map)
+
+    mapRef.current = map
+
+    return () => {
+      map.remove()
+    }
+  }, [])
 
   useEffect(() => {
     if (!navigator.geolocation) return
@@ -43,17 +63,11 @@ export default function GuestMapComponent({
         setCurrentLocation(newLocation)
 
         if (mapRef.current) {
-          mapRef.current.panTo(newLocation)
+          mapRef.current.panTo([newLocation.lat, newLocation.lng])
         }
       },
-      (error) => {
-        console.error("Geolocation error:", error)
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000,
-      },
+      (error) => console.error("Geolocation error:", error),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
     )
 
     return () => {
@@ -65,126 +79,92 @@ export default function GuestMapComponent({
 
   useEffect(() => {
     if (route.length > 0 && mapRef.current) {
-      const bounds = {
-        north: Math.max(...route.map((p) => p.lat)),
-        south: Math.min(...route.map((p) => p.lat)),
-        east: Math.max(...route.map((p) => p.lng)),
-        west: Math.min(...route.map((p) => p.lng)),
-      }
-      mapRef.current.fitBounds(bounds)
+      const bounds = L.latLngBounds(route.map((p) => [p.lat, p.lng]))
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] })
     }
   }, [route])
 
-  const mapCenter = currentLocation || reception || { lat: -24.0, lng: 29.0 }
+  useEffect(() => {
+    if (!mapRef.current) return
 
-  return (
-    <LoadScript googleMapsApiKey="AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8">
-      <GoogleMap
-        mapContainerStyle={{ width: "100%", height: "100%", minHeight: "400px" }}
-        center={mapCenter}
-        zoom={15}
-        onLoad={(map) => {
-          mapRef.current = map
-        }}
-        options={{
-          mapTypeControl: true,
-          streetViewControl: false,
-          fullscreenControl: true,
-        }}
-      >
-        {/* Current Location Marker */}
-        {currentLocation && (
-          <Marker
-            position={currentLocation}
-            icon={{
-              path: "M 0,0 m -8,0 a 8,8 0 1,0 16,0 a 8,8 0 1,0 -16,0",
-              scale: 1.5,
-              fillColor: "#4285F4",
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 3,
-            }}
-            title="Your Location"
-            zIndex={1000}
-          />
-        )}
+    markersRef.current.forEach((marker) => marker.remove())
+    markersRef.current = []
 
-        {/* Roads */}
-        {roads.map((road, index) =>
-          road.points.length > 1 ? (
-            <Polyline
-              key={index}
-              path={road.points}
-              options={{
-                strokeColor: "gray",
-                strokeWeight: 3,
-              }}
-            />
-          ) : null,
-        )}
+    if (currentLocation) {
+      const currentMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
+        radius: 8,
+        fillColor: "#4285F4",
+        color: "#FFFFFF",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.9,
+      })
+        .bindPopup("Your Location")
+        .addTo(mapRef.current)
 
-        {/* Reception Marker */}
-        {reception && (
-          <Marker
-            position={reception}
-            icon={{
-              path: "M 0,0 m -15,0 a 15,15 0 1,0 30,0 a 15,15 0 1,0 -30,0",
-              scale: 1,
-              fillColor: "blue",
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 2,
-            }}
-            label={{
-              text: "R",
-              color: "white",
-              fontSize: "14px",
-              fontWeight: "bold",
-            }}
-            title="RECEPTION"
-          />
-        )}
+      markersRef.current.push(currentMarker)
+    }
 
-        {/* House Markers */}
-        {houses.map((house, index) => {
-          const isSelected = selectedHouse && house.number === selectedHouse.number
-          return (
-            <Marker
-              key={index}
-              position={house.location}
-              icon={{
-                path: "M 0,0 m -12,0 a 12,12 0 1,0 24,0 a 12,12 0 1,0 -24,0",
-                scale: 1,
-                fillColor: isSelected ? "green" : "red",
-                fillOpacity: 1,
-                strokeColor: "#ffffff",
-                strokeWeight: 2,
-              }}
-              label={{
-                text: house.number,
-                color: "white",
-                fontSize: "12px",
-                fontWeight: "bold",
-              }}
-              title={`House ${house.number}`}
-            />
-          )
-        })}
+    roads.forEach((road) => {
+      if (road.points.length > 1) {
+        const polyline = L.polyline(
+          road.points.map((p) => [p.lat, p.lng]),
+          { color: "gray", weight: 3 },
+        ).addTo(mapRef.current!)
+        markersRef.current.push(polyline as any)
+      }
+    })
 
-        {/* Navigation Route */}
-        {route.length > 0 && (
-          <Polyline
-            path={route}
-            options={{
-              strokeColor: "green",
-              strokeWeight: 5,
-              strokeOpacity: 0.7,
-            }}
-          />
-        )}
-      </GoogleMap>
-    </LoadScript>
-  )
+    if (reception) {
+      const receptionMarker = L.circleMarker([reception.lat, reception.lng], {
+        radius: 10,
+        fillColor: "#FF0000",
+        color: "#FFFFFF",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 1,
+      })
+        .bindPopup("RECEPTION - CLUBHOUSE")
+        .addTo(mapRef.current)
+
+      markersRef.current.push(receptionMarker)
+    }
+
+    houses.forEach((house) => {
+      const isSelected = selectedHouse && house.number === selectedHouse.number
+      const houseMarker = L.circleMarker([house.location.lat, house.location.lng], {
+        radius: 10,
+        fillColor: isSelected ? "#2E7D32" : "#FF0000",
+        color: "#FFFFFF",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 1,
+      })
+        .bindPopup(`House ${house.number}`)
+        .addTo(mapRef.current!)
+
+      const icon = L.divIcon({
+        html: `<div style="color: white; font-size: 10px; font-weight: bold; text-align: center;">${house.number}</div>`,
+        className: "",
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      })
+
+      const labelMarker = L.marker([house.location.lat, house.location.lng], { icon }).addTo(mapRef.current!)
+
+      markersRef.current.push(houseMarker, labelMarker)
+    })
+
+    if (route.length > 0) {
+      const routePolyline = L.polyline(
+        route.map((p) => [p.lat, p.lng]),
+        { color: "green", weight: 5, opacity: 0.7 },
+      ).addTo(mapRef.current!)
+      markersRef.current.push(routePolyline as any)
+    }
+  }, [houses, roads, reception, selectedHouse, currentLocation, route])
+
+  return <div ref={mapContainerRef} style={{ width: "100%", height: "100%", minHeight: "500px" }} />
 }
 
 function findRoute(start: Location, end: Location, roads: Road[]): Location[] {

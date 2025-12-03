@@ -24,9 +24,7 @@
     "lucide-react": "^0.400.0",
     "@radix-ui/react-label": "latest",
     "@radix-ui/react-scroll-area": "latest",
-    "leaflet": "latest",
-    "@react-google-maps/api": "latest",
-    "google-maps": "latest"
+    "leaflet": "latest"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
