@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { GoogleMap, LoadScript, Marker, Polyline, InfoWindow } from "@react-google-maps/api"
+import type { google } from "google-maps"
 
 interface Location {
   lat: number
@@ -40,7 +41,7 @@ export default function MapComponent({
   isRecording = false,
   onLocationUpdate,
 }: MapComponentProps) {
-  const mapRef = useRef(null)
+  const mapRef = useRef<google.maps.Map | null>(null)
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
   const watchIdRef = useRef<number | null>(null)
   const [showReceptionInfo, setShowReceptionInfo] = useState(false)
