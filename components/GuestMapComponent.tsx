@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import L from "leaflet"
-import "leaflet/dist/leaflet.css"
+import { google } from "google-maps"
 
 interface Location {
   lat: number
@@ -18,12 +17,6 @@ interface House {
   location: Location
 }
 
-interface MapData {
-  reception: Location | null
-  houses: House[]
-  roads: Road[]
-}
-
 export default function GuestMapComponent({
   houses,
   roads,
@@ -35,43 +28,50 @@ export default function GuestMapComponent({
   reception: Location | null
   selectedHouse: House | null
 }) {
-  const mapRef = useRef<L.Map | null>(null)
+  const mapRef = useRef<google.maps.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
-  const currentLocationMarkerRef = useRef<L.Marker | null>(null)
+  const currentLocationMarkerRef = useRef<google.maps.Marker | null>(null)
+  const markersRef = useRef<(google.maps.Marker | google.maps.Polyline)[]>([])
+  const [isLoaded, setIsLoaded] = useState(false)
 
+  // Load Google Maps
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return
+    if (typeof window === "undefined") return
 
-    setTimeout(() => {
-      if (!mapContainerRef.current) return
-
-      console.log("[v0] Initializing guest map...")
-
-      const map = L.map(mapContainerRef.current, {
-        center: [-24.0, 29.0],
-        zoom: 15,
-      })
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-      }).addTo(map)
-
-      mapRef.current = map
-
-      setTimeout(() => {
-        map.invalidateSize()
-      }, 100)
-    }, 100)
-
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
+    const loadGoogleMaps = () => {
+      if (window.google && window.google.maps) {
+        setIsLoaded(true)
+        return
       }
+
+      const script = document.createElement("script")
+      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8`
+      script.async = true
+      script.defer = true
+      script.onload = () => setIsLoaded(true)
+      document.head.appendChild(script)
     }
+
+    loadGoogleMaps()
   }, [])
 
+  // Initialize map
+  useEffect(() => {
+    if (!isLoaded || !mapContainerRef.current || mapRef.current) return
+
+    const map = new google.maps.Map(mapContainerRef.current, {
+      center: { lat: -24.0, lng: 29.0 },
+      zoom: 15,
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true,
+    })
+
+    mapRef.current = map
+  }, [isLoaded])
+
+  // Watch position
   useEffect(() => {
     if (!navigator.geolocation) return
 
@@ -84,9 +84,7 @@ export default function GuestMapComponent({
         setCurrentLocation(newLocation)
 
         if (mapRef.current) {
-          mapRef.current.setView([newLocation.lat, newLocation.lng], mapRef.current.getZoom(), {
-            animate: true,
-          })
+          mapRef.current.panTo(newLocation)
         }
       },
       (error) => {
@@ -95,7 +93,7 @@ export default function GuestMapComponent({
       {
         enableHighAccuracy: true,
         maximumAge: 0,
-        timeout: 5000,
+        timeout: 10000,
       },
     )
 
@@ -104,120 +102,107 @@ export default function GuestMapComponent({
     }
   }, [])
 
+  // Update current location marker
   useEffect(() => {
     if (!mapRef.current || !currentLocation) return
 
     if (currentLocationMarkerRef.current) {
-      mapRef.current.removeLayer(currentLocationMarkerRef.current)
+      currentLocationMarkerRef.current.setMap(null)
     }
 
-    const currentLocationIcon = L.divIcon({
-      className: "custom-icon",
-      html: `<div style="
-        background-color: #4285F4; 
-        width: 20px; 
-        height: 20px; 
-        border-radius: 50%; 
-        border: 3px solid white; 
-        box-shadow: 0 0 10px rgba(66, 133, 244, 0.6);
-        position: relative;
-      ">
-        <div style="
-          position: absolute;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background-color: rgba(66, 133, 244, 0.3);
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          animation: pulse 2s infinite;
-        "></div>
-      </div>
-      <style>
-        @keyframes pulse {
-          0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
-        }
-      </style>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10],
+    const marker = new google.maps.Marker({
+      position: currentLocation,
+      map: mapRef.current,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: "#4285F4",
+        fillOpacity: 1,
+        strokeColor: "#ffffff",
+        strokeWeight: 3,
+      },
+      title: "Your Location",
+      zIndex: 1000,
     })
-
-    const marker = L.marker([currentLocation.lat, currentLocation.lng], {
-      icon: currentLocationIcon,
-      zIndexOffset: 1000,
-    })
-      .bindPopup("<b>Your Location</b>")
-      .addTo(mapRef.current)
 
     currentLocationMarkerRef.current = marker
   }, [currentLocation])
 
+  // Update markers and route
   useEffect(() => {
     if (!mapRef.current || !reception) return
 
-    const map = mapRef.current
-    map.eachLayer((layer: L.Layer) => {
-      if (layer instanceof L.Polyline || layer instanceof L.Marker) {
-        map.removeLayer(layer)
-      }
-    })
+    // Clear existing
+    markersRef.current.forEach((marker) => marker.setMap(null))
+    markersRef.current = []
 
+    // Add roads
     roads.forEach((road) => {
       if (road.points.length > 1) {
-        L.polyline(
-          road.points.map((p) => [p.lat, p.lng]),
-          {
-            color: "gray",
-            weight: 3,
-          },
-        ).addTo(map)
+        const polyline = new google.maps.Polyline({
+          path: road.points,
+          strokeColor: "gray",
+          strokeWeight: 3,
+          map: mapRef.current!,
+        })
+        markersRef.current.push(polyline)
       }
     })
 
-    const receptionIcon = L.divIcon({
-      className: "custom-div-icon",
-      html: `<div style="background-color: blue; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;">R</div>`,
-      iconSize: [30, 30],
-      iconAnchor: [15, 15],
+    // Add reception
+    const receptionMarker = new google.maps.Marker({
+      position: reception,
+      map: mapRef.current,
+      title: "RECEPTION",
+      label: { text: "R", color: "white", fontSize: "14px", fontWeight: "bold" },
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 15,
+        fillColor: "blue",
+        fillOpacity: 1,
+        strokeColor: "#ffffff",
+        strokeWeight: 2,
+      },
     })
+    markersRef.current.push(receptionMarker)
 
-    L.marker([reception.lat, reception.lng], {
-      icon: receptionIcon,
-    }).addTo(map)
-
+    // Add houses
     houses.forEach((house) => {
-      const houseIcon = L.divIcon({
-        className: "custom-div-icon",
-        html: `<div style="background-color: ${
-          selectedHouse && house.number === selectedHouse.number ? "green" : "red"
-        }; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;">${
-          house.number
-        }</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
+      const isSelected = selectedHouse && house.number === selectedHouse.number
+      const marker = new google.maps.Marker({
+        position: house.location,
+        map: mapRef.current!,
+        title: `House ${house.number}`,
+        label: { text: house.number, color: "white", fontSize: "12px", fontWeight: "bold" },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 12,
+          fillColor: isSelected ? "green" : "red",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 2,
+        },
       })
-
-      L.marker([house.location.lat, house.location.lng], {
-        icon: houseIcon,
-      }).addTo(map)
+      markersRef.current.push(marker)
     })
 
+    // Draw route if house selected
     if (selectedHouse && reception) {
       const route = findRoute(reception, selectedHouse.location, roads)
       if (route.length > 0) {
-        L.polyline(
-          route.map((p) => [p.lat, p.lng]),
-          {
-            color: "green",
-            weight: 5,
-            opacity: 0.7,
-          },
-        ).addTo(map)
+        const routeLine = new google.maps.Polyline({
+          path: route,
+          strokeColor: "green",
+          strokeWeight: 5,
+          strokeOpacity: 0.7,
+          map: mapRef.current!,
+        })
+        markersRef.current.push(routeLine)
 
-        const bounds = L.latLngBounds(route.map((p) => [p.lat, p.lng]))
-        map.fitBounds(bounds, { padding: [50, 50] })
+        // Fit bounds to show entire route
+        const bounds = new google.maps.LatLngBounds()
+        route.forEach((point) => bounds.extend(point))
+        mapRef.current!.fitBounds(bounds)
       }
     }
   }, [houses, roads, reception, selectedHouse])

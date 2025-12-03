@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import L from "leaflet"
-import "leaflet/dist/leaflet.css"
+import * as google from "google.maps"
 
 interface Location {
   lat: number
@@ -41,76 +40,73 @@ export default function MapComponent({
   isRecording = false,
   onLocationUpdate,
 }: MapComponentProps) {
-  const mapRef = useRef<L.Map | null>(null)
-  const markersRef = useRef<L.Layer[]>([])
+  const mapRef = useRef<google.maps.Map | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const markersRef = useRef<(google.maps.Marker | google.maps.Polyline)[]>([])
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
-  const currentLocationMarkerRef = useRef<L.Marker | null>(null)
+  const currentLocationMarkerRef = useRef<google.maps.Marker | null>(null)
   const watchIdRef = useRef<number | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
+  // Load Google Maps script
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    const initMap = () => {
-      if (mapRef.current) return
-
-      const mapContainer = containerRef.current
-      if (!mapContainer) {
+    const loadGoogleMaps = () => {
+      if (window.google && window.google.maps) {
+        setIsLoaded(true)
         return
       }
 
-      try {
-        const map = L.map(mapContainer).setView([0, 0], 13)
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "© OpenStreetMap contributors",
-          maxZoom: 19,
-        }).addTo(map)
-
-        map.on("click", (e: L.LeafletMouseEvent) => {
-          onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng })
-        })
-
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              map.setView([position.coords.latitude, position.coords.longitude], 18)
-              setCurrentLocation({ lat: position.coords.latitude, lng: position.coords.longitude })
-            },
-            () => {
-              map.setView([-24.7761, 30.6297], 13)
-            },
-            {
-              enableHighAccuracy: true,
-              maximumAge: 0,
-              timeout: 10000,
-            },
-          )
-        } else {
-          map.setView([-24.7761, 30.6297], 13)
-        }
-
-        mapRef.current = map
-
-        setTimeout(() => {
-          map.invalidateSize()
-        }, 100)
-      } catch (error) {
-        console.error("Error initializing map:", error)
-      }
+      const script = document.createElement("script")
+      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8`
+      script.async = true
+      script.defer = true
+      script.onload = () => setIsLoaded(true)
+      document.head.appendChild(script)
     }
 
-    const timeoutId = setTimeout(initMap, 100)
+    loadGoogleMaps()
+  }, [])
 
-    return () => {
-      clearTimeout(timeoutId)
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
+  // Initialize map
+  useEffect(() => {
+    if (!isLoaded || !containerRef.current || mapRef.current) return
+
+    const map = new google.maps.Map(containerRef.current, {
+      center: { lat: -24.7761, lng: 30.6297 },
+      zoom: 13,
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true,
+    })
+
+    map.addListener("click", (e: google.maps.MapMouseEvent) => {
+      if (e.latLng) {
+        onMapClick({ lat: e.latLng.lat(), lng: e.latLng.lng() })
       }
-    }
-  }, [onMapClick])
+    })
 
+    // Get user's current location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const pos = { lat: position.coords.latitude, lng: position.coords.longitude }
+          map.setCenter(pos)
+          map.setZoom(18)
+          setCurrentLocation(pos)
+        },
+        () => {
+          console.log("Geolocation failed, using default location")
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
+      )
+    }
+
+    mapRef.current = map
+  }, [isLoaded, onMapClick])
+
+  // Watch position for GPS tracking
   useEffect(() => {
     if (!navigator.geolocation) return
 
@@ -127,9 +123,7 @@ export default function MapComponent({
         }
 
         if (isRecording && mapRef.current) {
-          mapRef.current.setView([newLocation.lat, newLocation.lng], mapRef.current.getZoom(), {
-            animate: true,
-          })
+          mapRef.current.panTo(newLocation)
         }
       },
       (error) => {
@@ -151,149 +145,125 @@ export default function MapComponent({
     }
   }, [isRecording, onLocationUpdate])
 
+  // Update current location marker
   useEffect(() => {
     if (!mapRef.current || !currentLocation) return
 
     if (currentLocationMarkerRef.current) {
-      mapRef.current.removeLayer(currentLocationMarkerRef.current)
+      currentLocationMarkerRef.current.setMap(null)
     }
 
-    const currentLocationIcon = L.divIcon({
-      className: "custom-icon",
-      html: `<div style="
-        background-color: #4285F4; 
-        width: 20px; 
-        height: 20px; 
-        border-radius: 50%; 
-        border: 3px solid white; 
-        box-shadow: 0 0 10px rgba(66, 133, 244, 0.6);
-        position: relative;
-      ">
-        <div style="
-          position: absolute;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background-color: rgba(66, 133, 244, 0.3);
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          animation: pulse 2s infinite;
-        "></div>
-      </div>
-      <style>
-        @keyframes pulse {
-          0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
-        }
-      </style>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10],
+    const marker = new google.maps.Marker({
+      position: currentLocation,
+      map: mapRef.current,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: "#4285F4",
+        fillOpacity: 1,
+        strokeColor: "#ffffff",
+        strokeWeight: 3,
+      },
+      title: "Your Location",
+      zIndex: 1000,
     })
-
-    const marker = L.marker([currentLocation.lat, currentLocation.lng], {
-      icon: currentLocationIcon,
-      zIndexOffset: 1000,
-    })
-      .bindPopup("<b>Your Location</b>")
-      .addTo(mapRef.current)
 
     currentLocationMarkerRef.current = marker
   }, [currentLocation])
 
+  // Update all markers and roads
   useEffect(() => {
     if (!mapRef.current) return
 
     console.log("[v0] Updating markers - Reception:", reception, "Houses:", houses.length, "Roads:", roads.length)
 
-    markersRef.current.forEach((marker) => {
-      mapRef.current?.removeLayer(marker)
-    })
+    // Clear existing markers
+    markersRef.current.forEach((marker) => marker.setMap(null))
     markersRef.current = []
 
     if (reception) {
       console.log("[v0] Adding reception marker at:", reception)
 
-      // Create a big red marker using Leaflet's default icon
-      const defaultIcon = L.icon({
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-        iconSize: [50, 82],
-        iconAnchor: [25, 82],
-        popupAnchor: [0, -82],
-        shadowSize: [82, 82],
+      const receptionMarker = new google.maps.Marker({
+        position: reception,
+        map: mapRef.current,
+        title: "RECEPTION - CLUBHOUSE",
+        label: {
+          text: "R",
+          color: "white",
+          fontSize: "16px",
+          fontWeight: "bold",
+        },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 20,
+          fillColor: "#FF0000",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 3,
+        },
+        zIndex: 5000,
       })
 
-      const receptionMarker = L.marker([reception.lat, reception.lng], {
-        icon: defaultIcon,
-        zIndexOffset: 5000,
+      const infoWindow = new google.maps.InfoWindow({
+        content: "<b>RECEPTION - CLUBHOUSE</b><br>Starting Point",
       })
-        .bindPopup("<b>RECEPTION - CLUBHOUSE</b><br>Starting Point")
-        .addTo(mapRef.current)
-        .openPopup()
+      infoWindow.open(mapRef.current, receptionMarker)
 
       markersRef.current.push(receptionMarker)
 
-      // Center and zoom to reception location
-      mapRef.current.setView([reception.lat, reception.lng], 18)
+      // Center and zoom to reception
+      mapRef.current.setCenter(reception)
+      mapRef.current.setZoom(18)
 
-      console.log("[v0] Reception marker added successfully - should be VISIBLE")
+      console.log("[v0] Reception marker added successfully - BIG RED CIRCLE WITH R")
     }
 
     houses.forEach((house) => {
-      const houseIcon = L.divIcon({
-        className: "custom-icon",
-        html: `<div style="
-          background-color: #2E7D32; 
-          color: white;
-          width: 35px; 
-          height: 35px; 
-          border-radius: 50%; 
-          border: 3px solid white; 
-          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          font-size: 14px;
-        ">${house.number}</div>`,
-        iconSize: [35, 35],
-        iconAnchor: [17.5, 17.5],
+      const marker = new google.maps.Marker({
+        position: house.location,
+        map: mapRef.current!,
+        title: `House ${house.number}`,
+        label: {
+          text: house.number,
+          color: "white",
+          fontSize: "14px",
+          fontWeight: "bold",
+        },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 15,
+          fillColor: "#2E7D32",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 3,
+        },
       })
 
-      const marker = L.marker([house.location.lat, house.location.lng], { icon: houseIcon })
-        .bindPopup(`<b>House ${house.number}</b>`)
-        .addTo(mapRef.current!)
       markersRef.current.push(marker)
     })
 
     roads.forEach((road) => {
-      const polyline = L.polyline(
-        road.points.map((p) => [p.lat, p.lng]),
-        { color: "#FF6B6B", weight: 4 },
-      ).addTo(mapRef.current!)
+      const polyline = new google.maps.Polyline({
+        path: road.points,
+        strokeColor: "#FF6B6B",
+        strokeWeight: 4,
+        map: mapRef.current!,
+      })
+
       markersRef.current.push(polyline)
     })
 
     if (currentRoad.length > 0) {
-      const polyline = L.polyline(
-        currentRoad.map((p) => [p.lat, p.lng]),
-        { color: isRecording ? "#00FF00" : "#FFA500", weight: 5, dashArray: isRecording ? "" : "10, 5" },
-      ).addTo(mapRef.current!)
-      markersRef.current.push(polyline)
+      const polyline = new google.maps.Polyline({
+        path: currentRoad,
+        strokeColor: isRecording ? "#00FF00" : "#FFA500",
+        strokeWeight: 5,
+        strokeOpacity: 0.8,
+        map: mapRef.current!,
+      })
 
-      if (!isRecording) {
-        currentRoad.forEach((point) => {
-          const marker = L.circleMarker([point.lat, point.lng], {
-            radius: 6,
-            color: "#FFA500",
-            fillColor: "#FFA500",
-            fillOpacity: 1,
-          }).addTo(mapRef.current!)
-          markersRef.current.push(marker)
-        })
-      }
+      markersRef.current.push(polyline)
     }
   }, [reception, houses, roads, currentRoad, isRecording])
 
