@@ -214,71 +214,31 @@ export default function MapComponent({
     if (reception) {
       console.log("[v0] Adding reception marker at:", reception)
 
-      const receptionMarker = L.circleMarker([reception.lat, reception.lng], {
-        radius: 30,
-        fillColor: "#1E88E5",
-        color: "#ffffff",
-        weight: 5,
-        opacity: 1,
-        fillOpacity: 0.9,
+      // Create a big red marker using Leaflet's default icon
+      const defaultIcon = L.icon({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconSize: [50, 82],
+        iconAnchor: [25, 82],
+        popupAnchor: [0, -82],
+        shadowSize: [82, 82],
       })
-        .bindPopup("<b>Reception - Clubhouse</b><br>Starting Point")
+
+      const receptionMarker = L.marker([reception.lat, reception.lng], {
+        icon: defaultIcon,
+        zIndexOffset: 5000,
+      })
+        .bindPopup("<b>RECEPTION - CLUBHOUSE</b><br>Starting Point")
         .addTo(mapRef.current)
+        .openPopup()
 
-      // Add text label using divIcon with inline styles for guaranteed visibility
-      const receptionLabel = L.marker([reception.lat, reception.lng], {
-        icon: L.divIcon({
-          className: "",
-          html: `
-            <div style="
-              position: absolute;
-              top: -50px;
-              left: -50px;
-              width: 100px;
-              height: 100px;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              pointer-events: none;
-            ">
-              <div style="
-                color: white;
-                font-weight: 900;
-                font-size: 28px;
-                text-shadow: 
-                  -2px -2px 0 #000,
-                  2px -2px 0 #000,
-                  -2px 2px 0 #000,
-                  2px 2px 0 #000,
-                  0 0 10px rgba(0,0,0,0.8);
-                line-height: 1;
-              ">R</div>
-              <div style="
-                background: rgba(30, 136, 229, 0.95);
-                color: white;
-                font-weight: bold;
-                font-size: 11px;
-                padding: 3px 8px;
-                border-radius: 10px;
-                margin-top: 2px;
-                border: 2px solid white;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-              ">Clubhouse</div>
-            </div>
-          `,
-          iconSize: [100, 100],
-          iconAnchor: [50, 50],
-        }),
-        zIndexOffset: 4000,
-      }).addTo(mapRef.current)
-
-      markersRef.current.push(receptionMarker, receptionLabel)
+      markersRef.current.push(receptionMarker)
 
       // Center and zoom to reception location
       mapRef.current.setView([reception.lat, reception.lng], 18)
 
-      console.log("[v0] Reception marker and label added successfully")
+      console.log("[v0] Reception marker added successfully - should be VISIBLE")
     }
 
     houses.forEach((house) => {
