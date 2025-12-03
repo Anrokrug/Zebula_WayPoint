@@ -74,11 +74,16 @@ export default function MapComponent({
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (position) => {
-              map.setView([position.coords.latitude, position.coords.longitude], 16)
+              map.setView([position.coords.latitude, position.coords.longitude], 18)
               setCurrentLocation({ lat: position.coords.latitude, lng: position.coords.longitude })
             },
             () => {
               map.setView([-24.7761, 30.6297], 13)
+            },
+            {
+              enableHighAccuracy: true,
+              maximumAge: 0,
+              timeout: 10000,
             },
           )
         } else {
@@ -91,7 +96,7 @@ export default function MapComponent({
           map.invalidateSize()
         }, 100)
       } catch (error) {
-        console.error("[v0] Error initializing map:", error)
+        console.error("Error initializing map:", error)
       }
     }
 
@@ -128,12 +133,12 @@ export default function MapComponent({
         }
       },
       (error) => {
-        console.error("[v0] Geolocation error:", error)
+        console.error("Geolocation error:", error)
       },
       {
         enableHighAccuracy: true,
         maximumAge: 0,
-        timeout: 5000,
+        timeout: 10000,
       },
     )
 
@@ -199,7 +204,7 @@ export default function MapComponent({
   useEffect(() => {
     if (!mapRef.current) return
 
-    console.log("[v0] Updating markers - Reception:", reception, "Houses:", houses.length, "Roads:", roads.length)
+    console.log("Updating markers - Reception:", reception, "Houses:", houses.length, "Roads:", roads.length)
 
     markersRef.current.forEach((marker) => {
       mapRef.current?.removeLayer(marker)
@@ -207,55 +212,45 @@ export default function MapComponent({
     markersRef.current = []
 
     if (reception) {
-      console.log("[v0] Adding reception marker at:", reception)
+      console.log("Adding reception marker at:", reception)
 
-      const receptionIcon = L.divIcon({
-        className: "custom-icon",
-        html: `<div style="display: flex; flex-direction: column; align-items: center;">
-          <div style="
-            background-color: #1976D2; 
-            color: white;
-            width: 50px; 
-            height: 50px; 
-            border-radius: 50%; 
-            border: 4px solid white; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 24px;
-            position: relative;
-            z-index: 1000;
-          ">R</div>
-          <div style="
-            margin-top: 8px;
-            background-color: white;
-            color: #1976D2;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 12px;
-            white-space: nowrap;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          ">Clubhouse</div>
-        </div>`,
-        iconSize: [50, 80],
-        iconAnchor: [25, 25],
-      })
-
-      const marker = L.marker([reception.lat, reception.lng], {
-        icon: receptionIcon,
-        zIndexOffset: 2000,
+      const receptionMarker = L.circleMarker([reception.lat, reception.lng], {
+        radius: 25,
+        fillColor: "#1976D2",
+        color: "#fff",
+        weight: 4,
+        opacity: 1,
+        fillOpacity: 1,
       })
         .bindPopup("<b>Reception - Clubhouse</b>")
         .addTo(mapRef.current)
 
-      markersRef.current.push(marker)
-      console.log("[v0] Reception marker added successfully")
+      const receptionText = L.marker([reception.lat, reception.lng], {
+        icon: L.divIcon({
+          className: "reception-label",
+          html: `<div style="
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          ">
+            <div>R</div>
+            <div style="font-size: 10px; margin-top: -2px;">Clubhouse</div>
+          </div>`,
+          iconSize: [50, 50],
+          iconAnchor: [25, 25],
+        }),
+        zIndexOffset: 3000,
+      }).addTo(mapRef.current)
 
-      // Center map on reception when it's set
-      mapRef.current.setView([reception.lat, reception.lng], 16)
+      markersRef.current.push(receptionMarker, receptionText)
+
+      mapRef.current.setView([reception.lat, reception.lng], 18)
     }
 
     houses.forEach((house) => {
