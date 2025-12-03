@@ -35,7 +35,7 @@ function findRoute(start: Location, end: Location, roads: Road[]): Location[] {
   const allPoints: Location[] = []
   roads.forEach((road) => allPoints.push(...road.points))
 
-  const findNearest = (loc: Location, points: Location[]) => {
+  const findNearest = (loc: Location, points: Location[]): Location => {
     let minDist = Number.POSITIVE_INFINITY
     let nearest = points[0]
     points.forEach((p) => {
