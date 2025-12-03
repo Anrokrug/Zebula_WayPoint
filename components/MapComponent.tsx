@@ -199,36 +199,63 @@ export default function MapComponent({
   useEffect(() => {
     if (!mapRef.current) return
 
+    console.log("[v0] Updating markers - Reception:", reception, "Houses:", houses.length, "Roads:", roads.length)
+
     markersRef.current.forEach((marker) => {
       mapRef.current?.removeLayer(marker)
     })
     markersRef.current = []
 
     if (reception) {
+      console.log("[v0] Adding reception marker at:", reception)
+
       const receptionIcon = L.divIcon({
         className: "custom-icon",
-        html: `<div style="
-          background-color: #1976D2; 
-          color: white;
-          width: 40px; 
-          height: 40px; 
-          border-radius: 50%; 
-          border: 3px solid white; 
-          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          font-size: 18px;
-        ">R</div>`,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
+        html: `<div style="display: flex; flex-direction: column; align-items: center;">
+          <div style="
+            background-color: #1976D2; 
+            color: white;
+            width: 50px; 
+            height: 50px; 
+            border-radius: 50%; 
+            border: 4px solid white; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 24px;
+            position: relative;
+            z-index: 1000;
+          ">R</div>
+          <div style="
+            margin-top: 8px;
+            background-color: white;
+            color: #1976D2;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 12px;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          ">Clubhouse</div>
+        </div>`,
+        iconSize: [50, 80],
+        iconAnchor: [25, 25],
       })
 
-      const marker = L.marker([reception.lat, reception.lng], { icon: receptionIcon })
-        .bindPopup("<b>Reception</b>")
+      const marker = L.marker([reception.lat, reception.lng], {
+        icon: receptionIcon,
+        zIndexOffset: 2000,
+      })
+        .bindPopup("<b>Reception - Clubhouse</b>")
         .addTo(mapRef.current)
+
       markersRef.current.push(marker)
+      console.log("[v0] Reception marker added successfully")
+
+      // Center map on reception when it's set
+      mapRef.current.setView([reception.lat, reception.lng], 16)
     }
 
     houses.forEach((house) => {
