@@ -33,6 +33,8 @@ export default function GuestMapComponent({
   const mapRef = useRef<L.Map | null>(null)
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
   const markersRef = useRef<L.Marker[]>([])
+  const [isMoving, setIsMoving] = useState(false)
+  const previousLocationRef = useRef<Location | null>(null)
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return
@@ -62,8 +64,26 @@ export default function GuestMapComponent({
         }
         setCurrentLocation(newLocation)
 
-        if (mapRef.current) {
-          mapRef.current.panTo([newLocation.lat, newLocation.lng])
+        // Detect if user is moving (more than 5 meters from previous position)
+        if (previousLocationRef.current) {
+          const distance = Math.sqrt(
+            Math.pow((newLocation.lat - previousLocationRef.current.lat) * 111000, 2) +
+              Math.pow((newLocation.lng - previousLocationRef.current.lng) * 111000, 2),
+          )
+
+          if (distance > 5) {
+            setIsMoving(true)
+          }
+        }
+
+        previousLocationRef.current = newLocation
+
+        // Auto-follow user when they're moving
+        if (isMoving && mapRef.current) {
+          mapRef.current.setView([newLocation.lat, newLocation.lng], mapRef.current.getZoom(), {
+            animate: true,
+            duration: 0.5,
+          })
         }
       },
       (error) => console.error("Geolocation error:", error),
@@ -73,16 +93,21 @@ export default function GuestMapComponent({
     return () => {
       navigator.geolocation.clearWatch(watchId)
     }
-  }, [])
+  }, [isMoving])
 
   const route = selectedHouse && reception ? findRoute(reception, selectedHouse.location, roads) : []
 
   useEffect(() => {
-    if (route.length > 0 && mapRef.current) {
+    if (!mapRef.current) return
+
+    if (route.length > 0 && !isMoving) {
       const bounds = L.latLngBounds(route.map((p) => [p.lat, p.lng]))
       mapRef.current.fitBounds(bounds, { padding: [50, 50] })
+    } else if (reception && !isMoving && !selectedHouse) {
+      // Center on clubhouse when no house is selected and user isn't moving
+      mapRef.current.setView([reception.lat, reception.lng], 16)
     }
-  }, [route])
+  }, [route, reception, selectedHouse, isMoving])
 
   useEffect(() => {
     if (!mapRef.current) return
