@@ -25,9 +25,7 @@
     "@radix-ui/react-label": "latest",
     "@radix-ui/react-scroll-area": "latest",
     "leaflet": "latest",
-    "@react-google-maps/api": "latest",
-    "google-maps": "latest",
-    "googlemaps": "latest"
+    "@react-google-maps/api": "latest"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

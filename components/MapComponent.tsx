@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { GoogleMap, LoadScript, Marker, Polyline, InfoWindow } from "@react-google-maps/api"
-import { google } from "google-maps"
 
 interface Location {
   lat: number
@@ -41,9 +40,9 @@ export default function MapComponent({
   isRecording = false,
   onLocationUpdate,
 }: MapComponentProps) {
-  const mapRef = useRef<google.maps.Map | null>(null)
-  const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
-  const watchIdRef = useRef<number | null>(null)
+  const mapRef = useRef(null)
+  const [currentLocation, setCurrentLocation] = useState(null)
+  const watchIdRef = useRef(null)
   const [showReceptionInfo, setShowReceptionInfo] = useState(false)
 
   useEffect(() => {
@@ -51,7 +50,7 @@ export default function MapComponent({
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        const newLocation: Location = {
+        const newLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         }
@@ -133,7 +132,7 @@ export default function MapComponent({
           <Marker
             position={currentLocation}
             icon={{
-              path: google.maps.SymbolPath.CIRCLE,
+              path: "M 0,0 C -2,-20 2,-20 4,0 C 2,20 -2,20 -4,0 Z",
               scale: 10,
               fillColor: "#4285F4",
               fillOpacity: 1,
@@ -151,7 +150,7 @@ export default function MapComponent({
             <Marker
               position={reception}
               icon={{
-                path: google.maps.SymbolPath.CIRCLE,
+                path: "M 0,0 C -2,-20 2,-20 4,0 C 2,20 -2,20 -4,0 Z",
                 scale: 25,
                 fillColor: "#FF0000",
                 fillOpacity: 1,
@@ -186,7 +185,7 @@ export default function MapComponent({
             key={house.id}
             position={house.location}
             icon={{
-              path: google.maps.SymbolPath.CIRCLE,
+              path: "M 0,0 C -2,-20 2,-20 4,0 C 2,20 -2,20 -4,0 Z",
               scale: 15,
               fillColor: "#2E7D32",
               fillOpacity: 1,

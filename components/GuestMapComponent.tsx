@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { GoogleMap, LoadScript, Marker, Polyline } from "@react-google-maps/api"
-import { google } from "googlemaps"
 
 interface Location {
   lat: number
@@ -29,7 +28,7 @@ export default function GuestMapComponent({
   reception: Location | null
   selectedHouse: House | null
 }) {
-  const mapRef = useRef<google.maps.Map | null>(null)
+  const mapRef = useRef<any | null>(null)
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
 
   useEffect(() => {
@@ -66,8 +65,12 @@ export default function GuestMapComponent({
 
   useEffect(() => {
     if (route.length > 0 && mapRef.current) {
-      const bounds = new google.maps.LatLngBounds()
-      route.forEach((point) => bounds.extend(point))
+      const bounds = {
+        north: Math.max(...route.map((p) => p.lat)),
+        south: Math.min(...route.map((p) => p.lat)),
+        east: Math.max(...route.map((p) => p.lng)),
+        west: Math.min(...route.map((p) => p.lng)),
+      }
       mapRef.current.fitBounds(bounds)
     }
   }, [route])
@@ -94,8 +97,8 @@ export default function GuestMapComponent({
           <Marker
             position={currentLocation}
             icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 10,
+              path: "M 0,0 m -8,0 a 8,8 0 1,0 16,0 a 8,8 0 1,0 -16,0",
+              scale: 1.5,
               fillColor: "#4285F4",
               fillOpacity: 1,
               strokeColor: "#ffffff",
@@ -125,8 +128,8 @@ export default function GuestMapComponent({
           <Marker
             position={reception}
             icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 15,
+              path: "M 0,0 m -15,0 a 15,15 0 1,0 30,0 a 15,15 0 1,0 -30,0",
+              scale: 1,
               fillColor: "blue",
               fillOpacity: 1,
               strokeColor: "#ffffff",
@@ -150,8 +153,8 @@ export default function GuestMapComponent({
               key={index}
               position={house.location}
               icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 12,
+                path: "M 0,0 m -12,0 a 12,12 0 1,0 24,0 a 12,12 0 1,0 -24,0",
+                scale: 1,
                 fillColor: isSelected ? "green" : "red",
                 fillOpacity: 1,
                 strokeColor: "#ffffff",
