@@ -41,8 +41,8 @@ export default function MapComponent({
   onLocationUpdate,
 }: MapComponentProps) {
   const mapRef = useRef(null)
-  const [currentLocation, setCurrentLocation] = useState(null)
-  const watchIdRef = useRef(null)
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
+  const watchIdRef = useRef<number | null>(null)
   const [showReceptionInfo, setShowReceptionInfo] = useState(false)
 
   useEffect(() => {
