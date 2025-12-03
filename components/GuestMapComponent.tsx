@@ -206,11 +206,14 @@ function findRoute(start: Location, end: Location, roads: Road[]): Location[] {
       })
     })
 
-    if (nextPoint === null) continue
+    if (nextPoint === null) {
+      continue
+    }
 
-    visited.add(`${nextPoint.lat},${nextPoint.lng}`)
-    route.push(nextPoint)
-    current = nextPoint
+    const confirmedNextPoint: Location = nextPoint
+    visited.add(`${confirmedNextPoint.lat},${confirmedNextPoint.lng}`)
+    route.push(confirmedNextPoint)
+    current = confirmedNextPoint
   }
 
   route.push(endNearest)
