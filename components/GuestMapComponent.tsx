@@ -99,22 +99,44 @@ function findRoute(start: Location, end: Location, roads: Road[]): Location[] {
 export default function GuestMapComponent({ houses, roads, reception, selectedHouse }: GuestMapComponentProps) {
   const mapRef = useRef<L.Map | null>(null)
   const markersRef = useRef<L.Layer[]>([])
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    if (!mapRef.current) {
-      const map = L.map("guest-map").setView([reception.lat, reception.lng], 15)
+    const initMap = () => {
+      if (mapRef.current) return
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-        maxZoom: 19,
-      }).addTo(map)
+      const mapContainer = containerRef.current
+      if (!mapContainer) {
+        console.log("[v0] Guest map container not found")
+        return
+      }
 
-      mapRef.current = map
+      try {
+        const map = L.map(mapContainer).setView([reception.lat, reception.lng], 15)
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap contributors",
+          maxZoom: 19,
+        }).addTo(map)
+
+        mapRef.current = map
+        console.log("[v0] Guest map initialized successfully")
+
+        // Force resize after initialization
+        setTimeout(() => {
+          map.invalidateSize()
+        }, 100)
+      } catch (error) {
+        console.error("[v0] Error initializing guest map:", error)
+      }
     }
 
+    const timeoutId = setTimeout(initMap, 100)
+
     return () => {
+      clearTimeout(timeoutId)
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
@@ -183,5 +205,5 @@ export default function GuestMapComponent({ houses, roads, reception, selectedHo
     }
   }, [reception, houses, roads, selectedHouse])
 
-  return <div id="guest-map" className="w-full h-full" />
+  return <div ref={containerRef} className="w-full h-full" style={{ minHeight: "400px", background: "#e5e7eb" }} />
 }

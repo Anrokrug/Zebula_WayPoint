@@ -243,7 +243,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <div className="flex-1 relative">
+      <div className="flex-1 relative overflow-hidden">
         <MapComponent
           onMapClick={handleMapClick}
           houses={houses}
