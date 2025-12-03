@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect, useCallback } from "react"
 import dynamic from "next/dynamic"
-import { ArrowLeft, MapPin, HomeIcon, Route, Trash2, Save, Info, LogOut } from "lucide-react"
+import { ArrowLeft, MapPin, HomeIcon, Route, Trash2, Save, Info, LogOut, PlayCircle, StopCircle } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,6 +54,8 @@ export default function AdminPage() {
   const [showHouseDialog, setShowHouseDialog] = useState(false)
   const [houseNumber, setHouseNumber] = useState("")
   const [tempLocation, setTempLocation] = useState<Location | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingForHouse, setRecordingForHouse] = useState("")
 
   useEffect(() => {
     const authStatus = sessionStorage.getItem("admin_authenticated")
@@ -78,7 +80,6 @@ export default function AdminPage() {
     if (reception) {
       localStorage.setItem("farm_reception", JSON.stringify(reception))
     }
-    // Trigger update timestamp for other tabs
     localStorage.setItem("farm_last_update", Date.now().toString())
   }, [houses, roads, reception])
 
@@ -98,6 +99,22 @@ export default function AdminPage() {
     }
   }
 
+  const handleLocationUpdate = (location: Location) => {
+    if (isRecording) {
+      setCurrentRoad((prev) => {
+        const lastPoint = prev[prev.length - 1]
+        if (
+          !lastPoint ||
+          Math.abs(lastPoint.lat - location.lat) > 0.00001 ||
+          Math.abs(lastPoint.lng - location.lng) > 0.00001
+        ) {
+          return [...prev, location]
+        }
+        return prev
+      })
+    }
+  }
+
   const saveHouse = () => {
     if (!houseNumber.trim() || !tempLocation) return
 
@@ -111,6 +128,48 @@ export default function AdminPage() {
     setHouseNumber("")
     setTempLocation(null)
     setShowHouseDialog(false)
+    setMode("view")
+  }
+
+  const startRecording = () => {
+    if (!reception) {
+      alert("Please set reception location first!")
+      return
+    }
+
+    const house = prompt("Enter house number for this path:")
+    if (!house) return
+
+    setRecordingForHouse(house)
+    setIsRecording(true)
+    setCurrentRoad([reception])
+    setMode("road")
+  }
+
+  const stopRecording = () => {
+    if (currentRoad.length < 10) {
+      alert("Path is too short. Please drive/walk a longer distance.")
+      return
+    }
+
+    const lastPoint = currentRoad[currentRoad.length - 1]
+
+    const newHouse: House = {
+      id: Date.now().toString(),
+      number: recordingForHouse,
+      location: lastPoint,
+    }
+
+    const newRoad: Road = {
+      id: Date.now().toString(),
+      points: currentRoad,
+    }
+
+    setHouses([...houses, newHouse])
+    setRoads([...roads, newRoad])
+    setCurrentRoad([])
+    setIsRecording(false)
+    setRecordingForHouse("")
     setMode("view")
   }
 
@@ -251,8 +310,18 @@ export default function AdminPage() {
           reception={reception}
           currentRoad={currentRoad}
           mode={mode}
+          isRecording={isRecording}
+          onLocationUpdate={handleLocationUpdate}
         />
       </div>
+
+      {isRecording && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full shadow-lg z-50 flex items-center gap-3 animate-pulse">
+          <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
+          <span className="font-bold">Recording Path to House {recordingForHouse}</span>
+          <span className="text-sm">({currentRoad.length} points)</span>
+        </div>
+      )}
 
       <div className="bg-white border-t shadow-lg p-4">
         <div className="max-w-7xl mx-auto">
@@ -261,67 +330,91 @@ export default function AdminPage() {
             <AlertDescription className="text-xs sm:text-sm">
               {mode === "reception" && "Tap on the map to set reception location"}
               {mode === "house" && "Tap on the map to place a house"}
-              {mode === "road" && "Tap multiple points to draw a road, then click Finish"}
+              {mode === "road" && !isRecording && "Tap multiple points to draw a road, then click Finish"}
+              {isRecording && "Drive or walk from reception to the house. Your path is being recorded automatically."}
               {mode === "view" && "Select a mode below to start editing the map"}
             </AlertDescription>
           </Alert>
 
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-            <Button
-              onClick={() => setMode("reception")}
-              variant={mode === "reception" ? "default" : "outline"}
-              className="flex items-center gap-2"
-            >
-              <MapPin className="h-4 w-4" />
-              <span className="hidden sm:inline">Set </span>Reception
-            </Button>
+            {!isRecording ? (
+              <>
+                <Button
+                  onClick={() => setMode("reception")}
+                  variant={mode === "reception" ? "default" : "outline"}
+                  className="flex items-center gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  <span className="hidden sm:inline">Set </span>Reception
+                </Button>
 
-            <Button
-              onClick={() => setMode("house")}
-              variant={mode === "house" ? "default" : "outline"}
-              className="flex items-center gap-2"
-            >
-              <HomeIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Add </span>House
-            </Button>
+                <Button
+                  onClick={() => setMode("house")}
+                  variant={mode === "house" ? "default" : "outline"}
+                  className="flex items-center gap-2"
+                >
+                  <HomeIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Add </span>House
+                </Button>
 
-            <Button
-              onClick={() => {
-                if (mode === "road") {
-                  setCurrentRoad([])
-                  setMode("view")
-                } else {
-                  setMode("road")
-                }
-              }}
-              variant={mode === "road" ? "default" : "outline"}
-              className="flex items-center gap-2"
-            >
-              <Route className="h-4 w-4" />
-              {mode === "road" ? (
-                "Cancel Road"
-              ) : (
-                <>
-                  <span className="hidden sm:inline">Draw </span>Road
-                </>
-              )}
-            </Button>
+                <Button
+                  onClick={() => {
+                    if (mode === "road") {
+                      setCurrentRoad([])
+                      setMode("view")
+                    } else {
+                      setMode("road")
+                    }
+                  }}
+                  variant={mode === "road" ? "default" : "outline"}
+                  className="flex items-center gap-2"
+                >
+                  <Route className="h-4 w-4" />
+                  {mode === "road" ? (
+                    "Cancel Road"
+                  ) : (
+                    <>
+                      <span className="hidden sm:inline">Draw </span>Road
+                    </>
+                  )}
+                </Button>
 
-            {mode === "road" && currentRoad.length >= 2 && (
+                <Button
+                  onClick={startRecording}
+                  variant="default"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  disabled={!reception}
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  Record Path
+                </Button>
+
+                {mode === "road" && currentRoad.length >= 2 && (
+                  <Button
+                    onClick={finishRoad}
+                    variant="default"
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  >
+                    <Save className="h-4 w-4" />
+                    Finish Road
+                  </Button>
+                )}
+
+                <Button onClick={clearAll} variant="destructive" className="flex items-center gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Clear All
+                </Button>
+              </>
+            ) : (
               <Button
-                onClick={finishRoad}
-                variant="default"
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                onClick={stopRecording}
+                variant="destructive"
+                className="flex items-center gap-2 col-span-2 w-full text-lg py-6"
               >
-                <Save className="h-4 w-4" />
-                Finish Road
+                <StopCircle className="h-6 w-6" />
+                Stop Recording & Save Path
               </Button>
             )}
-
-            <Button onClick={clearAll} variant="destructive" className="flex items-center gap-2">
-              <Trash2 className="h-4 w-4" />
-              Clear All
-            </Button>
           </div>
         </div>
       </div>

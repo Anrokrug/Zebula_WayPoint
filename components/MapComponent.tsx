@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 
@@ -27,26 +27,37 @@ interface MapComponentProps {
   reception: Location | null
   currentRoad: Location[]
   mode: string
+  isRecording?: boolean
+  onLocationUpdate?: (location: Location) => void
 }
 
-export default function MapComponent({ onMapClick, houses, roads, reception, currentRoad, mode }: MapComponentProps) {
+export default function MapComponent({
+  onMapClick,
+  houses,
+  roads,
+  reception,
+  currentRoad,
+  mode,
+  isRecording = false,
+  onLocationUpdate,
+}: MapComponentProps) {
   const mapRef = useRef<L.Map | null>(null)
   const markersRef = useRef<L.Layer[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
+  const currentLocationMarkerRef = useRef<L.Marker | null>(null)
+  const watchIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") return
 
     const initMap = () => {
-      if (mapRef.current) return // Already initialized
+      if (mapRef.current) return
 
       const mapContainer = containerRef.current
       if (!mapContainer) {
-        console.log("[v0] Map container not found")
         return
       }
-
-      console.log("[v0] Creating Leaflet map")
 
       try {
         const map = L.map(mapContainer).setView([0, 0], 13)
@@ -63,24 +74,19 @@ export default function MapComponent({ onMapClick, houses, roads, reception, cur
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (position) => {
-              console.log("[v0] Geolocation found:", position.coords.latitude, position.coords.longitude)
               map.setView([position.coords.latitude, position.coords.longitude], 16)
+              setCurrentLocation({ lat: position.coords.latitude, lng: position.coords.longitude })
             },
-            (error) => {
-              console.log("[v0] Geolocation error:", error)
-              // Default to South Africa coordinates
+            () => {
               map.setView([-24.7761, 30.6297], 13)
             },
           )
         } else {
-          // Default to South Africa coordinates if no geolocation
           map.setView([-24.7761, 30.6297], 13)
         }
 
         mapRef.current = map
-        console.log("[v0] Map initialized successfully")
 
-        // Force a resize to ensure tiles load properly
         setTimeout(() => {
           map.invalidateSize()
         }, 100)
@@ -101,6 +107,96 @@ export default function MapComponent({ onMapClick, houses, roads, reception, cur
   }, [onMapClick])
 
   useEffect(() => {
+    if (!navigator.geolocation) return
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const newLocation: Location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }
+        setCurrentLocation(newLocation)
+
+        if (isRecording && onLocationUpdate) {
+          onLocationUpdate(newLocation)
+        }
+
+        if (isRecording && mapRef.current) {
+          mapRef.current.setView([newLocation.lat, newLocation.lng], mapRef.current.getZoom(), {
+            animate: true,
+          })
+        }
+      },
+      (error) => {
+        console.error("[v0] Geolocation error:", error)
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 5000,
+      },
+    )
+
+    watchIdRef.current = watchId
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+      }
+    }
+  }, [isRecording, onLocationUpdate])
+
+  useEffect(() => {
+    if (!mapRef.current || !currentLocation) return
+
+    if (currentLocationMarkerRef.current) {
+      mapRef.current.removeLayer(currentLocationMarkerRef.current)
+    }
+
+    const currentLocationIcon = L.divIcon({
+      className: "custom-icon",
+      html: `<div style="
+        background-color: #4285F4; 
+        width: 20px; 
+        height: 20px; 
+        border-radius: 50%; 
+        border: 3px solid white; 
+        box-shadow: 0 0 10px rgba(66, 133, 244, 0.6);
+        position: relative;
+      ">
+        <div style="
+          position: absolute;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background-color: rgba(66, 133, 244, 0.3);
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          animation: pulse 2s infinite;
+        "></div>
+      </div>
+      <style>
+        @keyframes pulse {
+          0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+      </style>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    })
+
+    const marker = L.marker([currentLocation.lat, currentLocation.lng], {
+      icon: currentLocationIcon,
+      zIndexOffset: 1000,
+    })
+      .bindPopup("<b>Your Location</b>")
+      .addTo(mapRef.current)
+
+    currentLocationMarkerRef.current = marker
+  }, [currentLocation])
+
+  useEffect(() => {
     if (!mapRef.current) return
 
     markersRef.current.forEach((marker) => {
@@ -111,9 +207,22 @@ export default function MapComponent({ onMapClick, houses, roads, reception, cur
     if (reception) {
       const receptionIcon = L.divIcon({
         className: "custom-icon",
-        html: '<div style="background-color: #1976D2; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
-        iconSize: [30, 30],
-        iconAnchor: [15, 30],
+        html: `<div style="
+          background-color: #1976D2; 
+          color: white;
+          width: 40px; 
+          height: 40px; 
+          border-radius: 50%; 
+          border: 3px solid white; 
+          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 18px;
+        ">R</div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
       })
 
       const marker = L.marker([reception.lat, reception.lng], { icon: receptionIcon })
@@ -125,9 +234,22 @@ export default function MapComponent({ onMapClick, houses, roads, reception, cur
     houses.forEach((house) => {
       const houseIcon = L.divIcon({
         className: "custom-icon",
-        html: '<div style="background-color: #2E7D32; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
-        iconSize: [30, 30],
-        iconAnchor: [15, 30],
+        html: `<div style="
+          background-color: #2E7D32; 
+          color: white;
+          width: 35px; 
+          height: 35px; 
+          border-radius: 50%; 
+          border: 3px solid white; 
+          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 14px;
+        ">${house.number}</div>`,
+        iconSize: [35, 35],
+        iconAnchor: [17.5, 17.5],
       })
 
       const marker = L.marker([house.location.lat, house.location.lng], { icon: houseIcon })
@@ -147,21 +269,23 @@ export default function MapComponent({ onMapClick, houses, roads, reception, cur
     if (currentRoad.length > 0) {
       const polyline = L.polyline(
         currentRoad.map((p) => [p.lat, p.lng]),
-        { color: "#FFA500", weight: 4, dashArray: "10, 5" },
+        { color: isRecording ? "#00FF00" : "#FFA500", weight: 5, dashArray: isRecording ? "" : "10, 5" },
       ).addTo(mapRef.current!)
       markersRef.current.push(polyline)
 
-      currentRoad.forEach((point) => {
-        const marker = L.circleMarker([point.lat, point.lng], {
-          radius: 6,
-          color: "#FFA500",
-          fillColor: "#FFA500",
-          fillOpacity: 1,
-        }).addTo(mapRef.current!)
-        markersRef.current.push(marker)
-      })
+      if (!isRecording) {
+        currentRoad.forEach((point) => {
+          const marker = L.circleMarker([point.lat, point.lng], {
+            radius: 6,
+            color: "#FFA500",
+            fillColor: "#FFA500",
+            fillOpacity: 1,
+          }).addTo(mapRef.current!)
+          markersRef.current.push(marker)
+        })
+      }
     }
-  }, [reception, houses, roads, currentRoad])
+  }, [reception, houses, roads, currentRoad, isRecording])
 
   return <div ref={containerRef} className="w-full h-full" style={{ minHeight: "400px", background: "#e5e7eb" }} />
 }

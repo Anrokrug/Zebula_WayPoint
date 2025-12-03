@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 
@@ -37,6 +37,8 @@ export default function GuestMapComponent({
 }) {
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
+  const currentLocationMarkerRef = useRef<L.Marker | null>(null)
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return
@@ -71,6 +73,88 @@ export default function GuestMapComponent({
   }, [])
 
   useEffect(() => {
+    if (!navigator.geolocation) return
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const newLocation: Location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }
+        setCurrentLocation(newLocation)
+
+        if (mapRef.current) {
+          mapRef.current.setView([newLocation.lat, newLocation.lng], mapRef.current.getZoom(), {
+            animate: true,
+          })
+        }
+      },
+      (error) => {
+        console.error("[v0] Geolocation error:", error)
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 5000,
+      },
+    )
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!mapRef.current || !currentLocation) return
+
+    if (currentLocationMarkerRef.current) {
+      mapRef.current.removeLayer(currentLocationMarkerRef.current)
+    }
+
+    const currentLocationIcon = L.divIcon({
+      className: "custom-icon",
+      html: `<div style="
+        background-color: #4285F4; 
+        width: 20px; 
+        height: 20px; 
+        border-radius: 50%; 
+        border: 3px solid white; 
+        box-shadow: 0 0 10px rgba(66, 133, 244, 0.6);
+        position: relative;
+      ">
+        <div style="
+          position: absolute;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background-color: rgba(66, 133, 244, 0.3);
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          animation: pulse 2s infinite;
+        "></div>
+      </div>
+      <style>
+        @keyframes pulse {
+          0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+      </style>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    })
+
+    const marker = L.marker([currentLocation.lat, currentLocation.lng], {
+      icon: currentLocationIcon,
+      zIndexOffset: 1000,
+    })
+      .bindPopup("<b>Your Location</b>")
+      .addTo(mapRef.current)
+
+    currentLocationMarkerRef.current = marker
+  }, [currentLocation])
+
+  useEffect(() => {
     if (!mapRef.current || !reception) return
 
     const map = mapRef.current
@@ -80,7 +164,6 @@ export default function GuestMapComponent({
       }
     })
 
-    // Draw roads
     roads.forEach((road) => {
       if (road.points.length > 1) {
         L.polyline(
@@ -93,7 +176,6 @@ export default function GuestMapComponent({
       }
     })
 
-    // Draw reception
     const receptionIcon = L.divIcon({
       className: "custom-div-icon",
       html: `<div style="background-color: blue; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;">R</div>`,
@@ -105,7 +187,6 @@ export default function GuestMapComponent({
       icon: receptionIcon,
     }).addTo(map)
 
-    // Draw houses
     houses.forEach((house) => {
       const houseIcon = L.divIcon({
         className: "custom-div-icon",
