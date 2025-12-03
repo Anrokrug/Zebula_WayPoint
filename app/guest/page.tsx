@@ -100,7 +100,9 @@ export default function GuestPage() {
     )
   }
 
-  const sortedHouses = [...houses].sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }))
+  const sortedHouses = [...houses].sort((a, b) =>
+    a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: "base" }),
+  )
 
   return (
     <div className="h-screen flex flex-col">
