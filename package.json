@@ -21,7 +21,10 @@
     "autoprefixer": "^10.4.0",
     "lucide-react": "^0.400.0",
     "leaflet": "latest",
-    "@vercel/analytics": "latest"
+    "@vercel/analytics": "latest",
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-label": "latest",
+    "@radix-ui/react-scroll-area": "latest"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
