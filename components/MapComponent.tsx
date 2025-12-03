@@ -204,7 +204,7 @@ export default function MapComponent({
   useEffect(() => {
     if (!mapRef.current) return
 
-    console.log("Updating markers - Reception:", reception, "Houses:", houses.length, "Roads:", roads.length)
+    console.log("[v0] Updating markers - Reception:", reception, "Houses:", houses.length, "Roads:", roads.length)
 
     markersRef.current.forEach((marker) => {
       mapRef.current?.removeLayer(marker)
@@ -212,45 +212,73 @@ export default function MapComponent({
     markersRef.current = []
 
     if (reception) {
-      console.log("Adding reception marker at:", reception)
+      console.log("[v0] Adding reception marker at:", reception)
 
       const receptionMarker = L.circleMarker([reception.lat, reception.lng], {
-        radius: 25,
-        fillColor: "#1976D2",
-        color: "#fff",
-        weight: 4,
+        radius: 30,
+        fillColor: "#1E88E5",
+        color: "#ffffff",
+        weight: 5,
         opacity: 1,
-        fillOpacity: 1,
+        fillOpacity: 0.9,
       })
-        .bindPopup("<b>Reception - Clubhouse</b>")
+        .bindPopup("<b>Reception - Clubhouse</b><br>Starting Point")
         .addTo(mapRef.current)
 
-      const receptionText = L.marker([reception.lat, reception.lng], {
+      // Add text label using divIcon with inline styles for guaranteed visibility
+      const receptionLabel = L.marker([reception.lat, reception.lng], {
         icon: L.divIcon({
-          className: "reception-label",
-          html: `<div style="
-            color: white;
-            font-weight: bold;
-            font-size: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            pointer-events: none;
-            white-space: nowrap;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-          ">
-            <div>R</div>
-            <div style="font-size: 10px; margin-top: -2px;">Clubhouse</div>
-          </div>`,
-          iconSize: [50, 50],
-          iconAnchor: [25, 25],
+          className: "",
+          html: `
+            <div style="
+              position: absolute;
+              top: -50px;
+              left: -50px;
+              width: 100px;
+              height: 100px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              pointer-events: none;
+            ">
+              <div style="
+                color: white;
+                font-weight: 900;
+                font-size: 28px;
+                text-shadow: 
+                  -2px -2px 0 #000,
+                  2px -2px 0 #000,
+                  -2px 2px 0 #000,
+                  2px 2px 0 #000,
+                  0 0 10px rgba(0,0,0,0.8);
+                line-height: 1;
+              ">R</div>
+              <div style="
+                background: rgba(30, 136, 229, 0.95);
+                color: white;
+                font-weight: bold;
+                font-size: 11px;
+                padding: 3px 8px;
+                border-radius: 10px;
+                margin-top: 2px;
+                border: 2px solid white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+              ">Clubhouse</div>
+            </div>
+          `,
+          iconSize: [100, 100],
+          iconAnchor: [50, 50],
         }),
-        zIndexOffset: 3000,
+        zIndexOffset: 4000,
       }).addTo(mapRef.current)
 
-      markersRef.current.push(receptionMarker, receptionText)
+      markersRef.current.push(receptionMarker, receptionLabel)
 
+      // Center and zoom to reception location
       mapRef.current.setView([reception.lat, reception.lng], 18)
+
+      console.log("[v0] Reception marker and label added successfully")
     }
 
     houses.forEach((house) => {
