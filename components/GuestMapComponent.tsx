@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import L from "leaflet"
 import "leaflet/dist/leaflet.css"
+
+let L: any = null
 
 interface Location {
   lat: number
@@ -10,12 +11,15 @@ interface Location {
 }
 
 interface Road {
+  id?: string
   points: Location[]
 }
 
 interface House {
+  id?: string
   number: string
   location: Location
+  route?: Location[]
 }
 
 export default function GuestMapComponent({
@@ -30,33 +34,67 @@ export default function GuestMapComponent({
   selectedHouse: House | null
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<L.Map | null>(null)
+  const mapRef = useRef<any>(null)
+  const markersRef = useRef<any[]>([])
+  const currentLocationMarkerRef = useRef<any>(null)
+  const watchIdRef = useRef<number | null>(null)
+  const followUserRef = useRef<boolean>(true)
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null)
-  const markersRef = useRef<L.Marker[]>([])
-  const [isMoving, setIsMoving] = useState(false)
-  const previousLocationRef = useRef<Location | null>(null)
+  const [leafletLoaded, setLeafletLoaded] = useState(false)
 
+  // Load Leaflet dynamically
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return
+    import("leaflet").then((leaflet) => {
+      L = leaflet.default || leaflet
+      setLeafletLoaded(true)
+    })
+  }, [])
 
-    const map = L.map(mapContainerRef.current).setView([-24.0, 29.0], 15)
+  // Initialize map once
+  useEffect(() => {
+    if (!leafletLoaded || !mapContainerRef.current || mapRef.current) return
+
+    const map = L.map(mapContainerRef.current).setView([-24.7761, 30.6297], 16)
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap contributors",
-      maxZoom: 19,
+      maxZoom: 20,
     }).addTo(map)
+
+    // When user pans manually, stop auto-following
+    map.on("dragstart", () => {
+      followUserRef.current = false
+    })
 
     mapRef.current = map
 
+    // Get initial position
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const pos: Location = { lat: position.coords.latitude, lng: position.coords.longitude }
+          setCurrentLocation(pos)
+          if (followUserRef.current) {
+            map.setView([pos.lat, pos.lng], 18)
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+      )
+    }
+
     return () => {
       map.remove()
+      mapRef.current = null
     }
-  }, [])
+  }, [leafletLoaded])
 
+  // GPS watch - follows user as they drive
   useEffect(() => {
+    if (!leafletLoaded) return
     if (!navigator.geolocation) return
 
-    const watchId = navigator.geolocation.watchPosition(
+    watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         const newLocation: Location = {
           lat: position.coords.latitude,
@@ -64,204 +102,231 @@ export default function GuestMapComponent({
         }
         setCurrentLocation(newLocation)
 
-        // Detect if user is moving (more than 5 meters from previous position)
-        if (previousLocationRef.current) {
-          const distance = Math.sqrt(
-            Math.pow((newLocation.lat - previousLocationRef.current.lat) * 111000, 2) +
-              Math.pow((newLocation.lng - previousLocationRef.current.lng) * 111000, 2),
-          )
-
-          if (distance > 5) {
-            setIsMoving(true)
-          }
-        }
-
-        previousLocationRef.current = newLocation
-
-        // Auto-follow user when they're moving
-        if (isMoving && mapRef.current) {
+        // Follow user on map if following is enabled
+        if (followUserRef.current && mapRef.current) {
           mapRef.current.setView([newLocation.lat, newLocation.lng], mapRef.current.getZoom(), {
             animate: true,
             duration: 0.5,
           })
         }
       },
-      (error) => console.error("Geolocation error:", error),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
+      (error) => console.error("GPS error:", error),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
     )
 
     return () => {
-      navigator.geolocation.clearWatch(watchId)
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
     }
-  }, [isMoving])
+  }, [leafletLoaded])
 
-  const route = selectedHouse && reception ? findRoute(reception, selectedHouse.location, roads) : []
-
+  // When a house is selected, show the saved route and fit bounds
   useEffect(() => {
-    if (!mapRef.current) return
+    if (!mapRef.current || !leafletLoaded) return
+    if (selectedHouse?.route && selectedHouse.route.length > 0) {
+      // Briefly show full route then resume following
+      followUserRef.current = false
+      const bounds = L.latLngBounds(selectedHouse.route.map((p: Location) => [p.lat, p.lng]))
+      mapRef.current.fitBounds(bounds, { padding: [50, 50], animate: true })
 
-    if (route.length > 0 && !isMoving) {
-      const bounds = L.latLngBounds(route.map((p) => [p.lat, p.lng]))
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] })
-    } else if (reception && !isMoving && !selectedHouse) {
-      // Center on clubhouse when no house is selected and user isn't moving
-      mapRef.current.setView([reception.lat, reception.lng], 16)
+      // After 3 seconds, re-enable following user
+      setTimeout(() => {
+        followUserRef.current = true
+      }, 3000)
     }
-  }, [route, reception, selectedHouse, isMoving])
+  }, [selectedHouse, leafletLoaded])
 
+  // Render all static markers and routes
   useEffect(() => {
-    if (!mapRef.current) return
+    if (!mapRef.current || !leafletLoaded) return
 
-    markersRef.current.forEach((marker) => marker.remove())
+    markersRef.current.forEach((m) => {
+      try { m.remove() } catch (_) {}
+    })
     markersRef.current = []
 
-    if (currentLocation) {
-      const currentMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
-        radius: 8,
-        fillColor: "#4285F4",
+    // Reception / Clubhouse marker
+    if (reception) {
+      const receptionMarker = L.circleMarker([reception.lat, reception.lng], {
+        radius: 14,
+        fillColor: "#1565C0",
         color: "#FFFFFF",
-        weight: 2,
+        weight: 3,
         opacity: 1,
-        fillOpacity: 0.9,
+        fillOpacity: 1,
+        zIndexOffset: 1000,
       })
-        .bindPopup("Your Location")
+        .bindPopup("<strong>CLUBHOUSE</strong><br>Your Starting Point")
         .addTo(mapRef.current)
 
-      markersRef.current.push(currentMarker)
+      const labelIcon = L.divIcon({
+        html: `<div style="
+          background: #1565C0;
+          color: white;
+          font-weight: bold;
+          font-size: 11px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          border: 2px solid white;
+          white-space: nowrap;
+          margin-top: 18px;
+          margin-left: -20px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        ">Clubhouse</div>`,
+        className: "",
+        iconSize: [80, 24],
+        iconAnchor: [0, 0],
+      })
+      const labelMarker = L.marker([reception.lat, reception.lng], {
+        icon: labelIcon,
+        interactive: false,
+      }).addTo(mapRef.current)
+
+      markersRef.current.push(receptionMarker, labelMarker)
     }
 
+    // All roads (grey)
     roads.forEach((road) => {
       if (road.points.length > 1) {
         const polyline = L.polyline(
-          road.points.map((p) => [p.lat, p.lng]),
-          { color: "gray", weight: 3 },
-        ).addTo(mapRef.current!)
-        markersRef.current.push(polyline as any)
+          road.points.map((p: Location) => [p.lat, p.lng]),
+          { color: "#757575", weight: 3, opacity: 0.7 }
+        ).addTo(mapRef.current)
+        markersRef.current.push(polyline)
       }
     })
 
-    if (reception) {
-      const receptionMarker = L.circleMarker([reception.lat, reception.lng], {
-        radius: 10,
-        fillColor: "#FF0000",
+    // House markers
+    houses.forEach((house) => {
+      const isSelected = selectedHouse?.number === house.number
+      const houseMarker = L.circleMarker([house.location.lat, house.location.lng], {
+        radius: isSelected ? 14 : 10,
+        fillColor: isSelected ? "#E65100" : "#2E7D32",
         color: "#FFFFFF",
         weight: 2,
         opacity: 1,
         fillOpacity: 1,
+        zIndexOffset: isSelected ? 900 : 500,
       })
-        .bindPopup("RECEPTION - CLUBHOUSE")
+        .bindPopup(`<strong>House ${house.number}</strong>`)
         .addTo(mapRef.current)
 
-      markersRef.current.push(receptionMarker)
-    }
-
-    houses.forEach((house) => {
-      const isSelected = selectedHouse && house.number === selectedHouse.number
-      const houseMarker = L.circleMarker([house.location.lat, house.location.lng], {
-        radius: 10,
-        fillColor: isSelected ? "#2E7D32" : "#FF0000",
-        color: "#FFFFFF",
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 1,
-      })
-        .bindPopup(`House ${house.number}`)
-        .addTo(mapRef.current!)
-
       const icon = L.divIcon({
-        html: `<div style="color: white; font-size: 10px; font-weight: bold; text-align: center;">${house.number}</div>`,
+        html: `<div style="
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+          text-align: center;
+          line-height: 20px;
+        ">${house.number}</div>`,
         className: "",
         iconSize: [20, 20],
         iconAnchor: [10, 10],
       })
-
-      const labelMarker = L.marker([house.location.lat, house.location.lng], { icon }).addTo(mapRef.current!)
+      const labelMarker = L.marker([house.location.lat, house.location.lng], {
+        icon,
+        interactive: false,
+      }).addTo(mapRef.current)
 
       markersRef.current.push(houseMarker, labelMarker)
     })
 
-    if (route.length > 0) {
+    // Show selected house saved route in green
+    if (selectedHouse?.route && selectedHouse.route.length > 0) {
       const routePolyline = L.polyline(
-        route.map((p) => [p.lat, p.lng]),
-        { color: "green", weight: 5, opacity: 0.7 },
-      ).addTo(mapRef.current!)
-      markersRef.current.push(routePolyline as any)
+        selectedHouse.route.map((p: Location) => [p.lat, p.lng]),
+        { color: "#00C853", weight: 6, opacity: 0.85 }
+      ).addTo(mapRef.current)
+      markersRef.current.push(routePolyline)
     }
-  }, [houses, roads, reception, selectedHouse, currentLocation, route])
+  }, [houses, roads, reception, selectedHouse, leafletLoaded])
 
-  return <div ref={mapContainerRef} style={{ width: "100%", height: "100%", minHeight: "500px" }} />
-}
+  // Render current location dot separately
+  useEffect(() => {
+    if (!mapRef.current || !leafletLoaded || !currentLocation) return
 
-function findRoute(start: Location, end: Location, roads: Road[]): Location[] {
-  const allPoints: Location[] = [start]
-  roads.forEach((road) => {
-    allPoints.push(...road.points)
-  })
-  allPoints.push(end)
+    if (currentLocationMarkerRef.current) {
+      try { currentLocationMarkerRef.current.remove() } catch (_) {}
+    }
 
-  const findNearest = (target: Location, points: Location[]): Location => {
-    let nearest = points[0]
-    let minDist = Number.POSITIVE_INFINITY
-
-    points.forEach((point) => {
-      const dist = Math.sqrt(Math.pow(point.lat - target.lat, 2) + Math.pow(point.lng - target.lng, 2))
-      if (dist < minDist) {
-        minDist = dist
-        nearest = point
+    currentLocationMarkerRef.current = L.circleMarker(
+      [currentLocation.lat, currentLocation.lng],
+      {
+        radius: 9,
+        fillColor: "#4285F4",
+        color: "#FFFFFF",
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 1,
+        zIndexOffset: 2000,
       }
-    })
+    )
+      .bindPopup("Your Location")
+      .addTo(mapRef.current)
+  }, [currentLocation, leafletLoaded])
 
-    return nearest
-  }
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div ref={mapContainerRef} style={{ width: "100%", height: "100%", minHeight: "500px" }} />
 
-  const startNearest = findNearest(start, allPoints)
-  const endNearest = findNearest(end, allPoints)
-
-  const route: Location[] = [start, startNearest]
-  const visited = new Set<string>()
-  visited.add(`${start.lat},${start.lng}`)
-  visited.add(`${startNearest.lat},${startNearest.lng}`)
-
-  let current = startNearest
-
-  for (let i = 0; i < 100; i++) {
-    if (Math.sqrt(Math.pow(current.lat - endNearest.lat, 2) + Math.pow(current.lng - endNearest.lng, 2)) < 0.001) {
-      break
-    }
-
-    let nextPoint: Location | null = null
-    let minScore = Number.POSITIVE_INFINITY
-
-    roads.forEach((road) => {
-      road.points.forEach((point) => {
-        const key = `${point.lat},${point.lng}`
-        if (visited.has(key)) return
-
-        const distToCurrent = Math.sqrt(Math.pow(point.lat - current.lat, 2) + Math.pow(point.lng - current.lng, 2))
-        const distToEnd = Math.sqrt(Math.pow(point.lat - endNearest.lat, 2) + Math.pow(point.lng - endNearest.lng, 2))
-
-        if (distToCurrent < 0.001) {
-          const score = distToEnd
-          if (score < minScore) {
-            minScore = score
-            nextPoint = point
+      {/* Follow Me button */}
+      <button
+        onClick={() => {
+          followUserRef.current = true
+          if (currentLocation && mapRef.current) {
+            mapRef.current.setView([currentLocation.lat, currentLocation.lng], 18, { animate: true })
           }
-        }
-      })
-    })
+        }}
+        style={{
+          position: "absolute",
+          bottom: "20px",
+          right: "10px",
+          zIndex: 1000,
+          background: "#1565C0",
+          color: "white",
+          border: "none",
+          borderRadius: "8px",
+          padding: "10px 14px",
+          fontWeight: "bold",
+          fontSize: "13px",
+          cursor: "pointer",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+        }}
+      >
+        Follow Me
+      </button>
 
-    if (nextPoint === null) {
-      continue
-    }
-
-    const confirmedNextPoint: Location = nextPoint
-    visited.add(`${confirmedNextPoint.lat},${confirmedNextPoint.lng}`)
-    route.push(confirmedNextPoint)
-    current = confirmedNextPoint
-  }
-
-  route.push(endNearest)
-  route.push(end)
-
-  return route
+      {/* Show Route button when house selected */}
+      {selectedHouse && (
+        <button
+          onClick={() => {
+            followUserRef.current = false
+            if (selectedHouse?.route && selectedHouse.route.length > 0 && mapRef.current) {
+              const bounds = L.latLngBounds(selectedHouse.route.map((p: Location) => [p.lat, p.lng]))
+              mapRef.current.fitBounds(bounds, { padding: [50, 50], animate: true })
+            }
+          }}
+          style={{
+            position: "absolute",
+            bottom: "60px",
+            right: "10px",
+            zIndex: 1000,
+            background: "#2E7D32",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            padding: "10px 14px",
+            fontWeight: "bold",
+            fontSize: "13px",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+          }}
+        >
+          Show Route
+        </button>
+      )}
+    </div>
+  )
 }
