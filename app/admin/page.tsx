@@ -224,85 +224,121 @@ export default function AdminPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Admin Login</CardTitle>
-            <CardDescription className="text-center">Zebula Golf Estate And Spa</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="Enter username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
+      <div style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #1e40af 0%, #1d4ed8 50%, #2563eb 100%)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "1rem", fontFamily: "system-ui, -apple-system, sans-serif",
+      }}>
+        <div style={{
+          background: "white", borderRadius: "1.5rem", padding: "2.5rem",
+          width: "100%", maxWidth: "420px",
+          boxShadow: "0 25px 60px rgba(0,0,0,0.25)",
+        }}>
+          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <div style={{
+              width: "4rem", height: "4rem", background: "linear-gradient(135deg, #3b82f6, #4f46e5)",
+              borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 1rem", boxShadow: "0 4px 15px rgba(79,70,229,0.4)",
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+            </div>
+            <h1 style={{ fontSize: "1.6rem", fontWeight: "800", color: "#111827", margin: "0 0 0.3rem" }}>Admin Login</h1>
+            <p style={{ color: "#6b7280", fontSize: "0.9rem", margin: 0 }}>Zebula Golf Estate And Spa</p>
+          </div>
+
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={{ display: "block", fontWeight: "600", color: "#374151", marginBottom: "0.4rem", fontSize: "0.9rem" }}>
+                Username
+              </label>
+              <input
+                type="text"
+                placeholder="Enter username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                style={{
+                  width: "100%", padding: "0.75rem 1rem", borderRadius: "0.75rem",
+                  border: "2px solid #e5e7eb", fontSize: "1rem", outline: "none",
+                  boxSizing: "border-box", transition: "border-color 0.2s",
+                }}
+                onFocus={e => (e.target.style.borderColor = "#3b82f6")}
+                onBlur={e => (e.target.style.borderColor = "#e5e7eb")}
+              />
+            </div>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={{ display: "block", fontWeight: "600", color: "#374151", marginBottom: "0.4rem", fontSize: "0.9rem" }}>
+                Password
+              </label>
+              <input
+                type="password"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{
+                  width: "100%", padding: "0.75rem 1rem", borderRadius: "0.75rem",
+                  border: "2px solid #e5e7eb", fontSize: "1rem", outline: "none",
+                  boxSizing: "border-box", transition: "border-color 0.2s",
+                }}
+                onFocus={e => (e.target.style.borderColor = "#3b82f6")}
+                onBlur={e => (e.target.style.borderColor = "#e5e7eb")}
+              />
+            </div>
+            {loginError && (
+              <div style={{
+                background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "0.75rem",
+                padding: "0.75rem 1rem", color: "#dc2626", fontSize: "0.9rem", marginBottom: "1rem",
+              }}>
+                {loginError}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              {loginError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{loginError}</AlertDescription>
-                </Alert>
-              )}
-              <Button type="submit" className="w-full">
-                Login
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            )}
+            <button
+              type="submit"
+              style={{
+                width: "100%", padding: "0.85rem", borderRadius: "0.75rem", border: "none",
+                background: "linear-gradient(135deg, #3b82f6, #4f46e5)", color: "white",
+                fontSize: "1rem", fontWeight: "700", cursor: "pointer",
+                boxShadow: "0 4px 15px rgba(79,70,229,0.4)",
+              }}
+            >
+              Login
+            </button>
+          </form>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      <header className="bg-blue-600 text-white p-4 shadow-lg">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-3">
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="text-white hover:bg-blue-700">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      <header style={{ background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "white", padding: "0.75rem 1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth: "1280px", margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <Link href="/" style={{ color: "white", background: "rgba(255,255,255,0.15)", borderRadius: "0.5rem", padding: "0.4rem", display: "flex", alignItems: "center" }}>
+              <ArrowLeft style={{ width: "1.2rem", height: "1.2rem" }} />
             </Link>
             <div>
-              <h1 className="text-xl font-bold">Admin - Map Setup</h1>
-              <p className="text-xs text-blue-100">Zebula Golf Estate And Spa</p>
+              <h1 style={{ fontSize: "1.1rem", fontWeight: "800", margin: 0 }}>Admin - Map Setup</h1>
+              <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.8)", margin: 0 }}>Zebula Golf Estate And Spa</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-sm hidden sm:block">
-              <span className="hidden sm:inline">Reception: {reception ? "✓" : "✗"} | </span>
-              Houses: {houses.length} | Roads: {roads.length}
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.9)" }}>
+              Reception: {reception ? "✓" : "✗"} | Houses: {houses.length} | Roads: {roads.length}
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-blue-700"
-              onClick={handleLogout}
-              title="Logout"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <button onClick={handleLogout} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "0.5rem", padding: "0.4rem", cursor: "pointer", color: "white", display: "flex", alignItems: "center" }} title="Logout">
+              <LogOut style={{ width: "1.2rem", height: "1.2rem" }} />
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 relative overflow-hidden">
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <MapComponent
           onMapClick={handleMapClick}
           houses={houses}
@@ -316,130 +352,144 @@ export default function AdminPage() {
       </div>
 
       {isRecording && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full shadow-lg z-50 flex items-center gap-3 animate-pulse">
-          <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
-          <span className="font-bold">Recording Path to House {recordingForHouse}</span>
-          <span className="text-sm">({currentRoad.length} points)</span>
+        <div style={{
+          position: "absolute", top: "5rem", left: "50%", transform: "translateX(-50%)",
+          background: "#ef4444", color: "white", padding: "0.75rem 1.5rem",
+          borderRadius: "9999px", boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+          zIndex: 50, display: "flex", alignItems: "center", gap: "0.75rem",
+          fontFamily: "system-ui, sans-serif",
+        }}>
+          <div style={{ width: "0.75rem", height: "0.75rem", background: "white", borderRadius: "50%", animation: "ping 1s infinite" }} />
+          <span style={{ fontWeight: "700" }}>Recording Path to House {recordingForHouse}</span>
+          <span style={{ fontSize: "0.85rem", opacity: 0.85 }}>({currentRoad.length} pts)</span>
         </div>
       )}
 
-      <div className="bg-white border-t shadow-lg p-4">
-        <div className="max-w-7xl mx-auto">
-          <Alert className="mb-3">
-            <Info className="h-4 w-4" />
-            <AlertDescription className="text-xs sm:text-sm">
-              {mode === "reception" && "Tap on the map to set reception location"}
-              {mode === "house" && "Tap on the map to place a house"}
+      <div style={{ background: "white", borderTop: "2px solid #e5e7eb", boxShadow: "0 -4px 12px rgba(0,0,0,0.08)", padding: "0.75rem 1rem", flexShrink: 0 }}>
+        <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
+          <div style={{
+            background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "0.75rem",
+            padding: "0.6rem 1rem", marginBottom: "0.75rem", fontSize: "0.85rem", color: "#1d4ed8",
+            display: "flex", alignItems: "center", gap: "0.5rem",
+          }}>
+            <Info style={{ width: "1rem", height: "1rem", flexShrink: 0 }} />
+            <span>
+              {mode === "reception" && "Tap on the map to set the Clubhouse / Reception location"}
+              {mode === "house" && "Tap on the map to place a house marker"}
               {mode === "road" && !isRecording && "Tap multiple points to draw a road, then click Finish"}
-              {isRecording && "Drive or walk from reception to the house. Your path is being recorded automatically."}
+              {isRecording && "Drive or walk from reception to the house. Path is being recorded automatically."}
               {mode === "view" && "Select a mode below to start editing the map"}
-            </AlertDescription>
-          </Alert>
+            </span>
+          </div>
 
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
             {!isRecording ? (
               <>
-                <Button
-                  onClick={() => setMode("reception")}
-                  variant={mode === "reception" ? "default" : "outline"}
-                  className="flex items-center gap-2"
-                >
-                  <MapPin className="h-4 w-4" />
-                  <span className="hidden sm:inline">Set </span>Reception
-                </Button>
+                {(["reception", "house", "road"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      if (m === "road" && mode === "road") { setCurrentRoad([]); setMode("view") }
+                      else setMode(m)
+                    }}
+                    style={{
+                      padding: "0.5rem 1rem", borderRadius: "0.6rem", fontWeight: "600", fontSize: "0.85rem",
+                      cursor: "pointer", display: "flex", alignItems: "center", gap: "0.4rem",
+                      border: mode === m ? "none" : "2px solid #e5e7eb",
+                      background: mode === m ? "#2563eb" : "white",
+                      color: mode === m ? "white" : "#374151",
+                      boxShadow: mode === m ? "0 4px 12px rgba(37,99,235,0.3)" : "none",
+                    }}
+                  >
+                    {m === "reception" && <><MapPin style={{ width: "1rem", height: "1rem" }} /> Reception</>}
+                    {m === "house" && <><HomeIcon style={{ width: "1rem", height: "1rem" }} /> Add House</>}
+                    {m === "road" && <><Route style={{ width: "1rem", height: "1rem" }} /> {mode === "road" ? "Cancel Road" : "Draw Road"}</>}
+                  </button>
+                ))}
 
-                <Button
-                  onClick={() => setMode("house")}
-                  variant={mode === "house" ? "default" : "outline"}
-                  className="flex items-center gap-2"
-                >
-                  <HomeIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Add </span>House
-                </Button>
-
-                <Button
-                  onClick={() => {
-                    if (mode === "road") {
-                      setCurrentRoad([])
-                      setMode("view")
-                    } else {
-                      setMode("road")
-                    }
-                  }}
-                  variant={mode === "road" ? "default" : "outline"}
-                  className="flex items-center gap-2"
-                >
-                  <Route className="h-4 w-4" />
-                  {mode === "road" ? (
-                    "Cancel Road"
-                  ) : (
-                    <>
-                      <span className="hidden sm:inline">Draw </span>Road
-                    </>
-                  )}
-                </Button>
-
-                <Button
+                <button
                   onClick={startRecording}
-                  variant="default"
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
                   disabled={!reception}
+                  style={{
+                    padding: "0.5rem 1rem", borderRadius: "0.6rem", fontWeight: "600", fontSize: "0.85rem",
+                    cursor: reception ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: "0.4rem",
+                    border: "none", background: reception ? "#059669" : "#d1fae5", color: reception ? "white" : "#6b7280",
+                    boxShadow: reception ? "0 4px 12px rgba(5,150,105,0.3)" : "none",
+                  }}
                 >
-                  <PlayCircle className="h-4 w-4" />
-                  Record Path
-                </Button>
+                  <PlayCircle style={{ width: "1rem", height: "1rem" }} /> Record Path
+                </button>
 
                 {mode === "road" && currentRoad.length >= 2 && (
-                  <Button
-                    onClick={finishRoad}
-                    variant="default"
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                  >
-                    <Save className="h-4 w-4" />
-                    Finish Road
-                  </Button>
+                  <button onClick={finishRoad} style={{
+                    padding: "0.5rem 1rem", borderRadius: "0.6rem", fontWeight: "600", fontSize: "0.85rem",
+                    cursor: "pointer", display: "flex", alignItems: "center", gap: "0.4rem",
+                    border: "none", background: "#059669", color: "white",
+                    boxShadow: "0 4px 12px rgba(5,150,105,0.3)",
+                  }}>
+                    <Save style={{ width: "1rem", height: "1rem" }} /> Finish Road
+                  </button>
                 )}
 
-                <Button onClick={clearAll} variant="destructive" className="flex items-center gap-2">
-                  <Trash2 className="h-4 w-4" />
-                  Clear All
-                </Button>
+                <button onClick={clearAll} style={{
+                  padding: "0.5rem 1rem", borderRadius: "0.6rem", fontWeight: "600", fontSize: "0.85rem",
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: "0.4rem",
+                  border: "none", background: "#ef4444", color: "white",
+                  boxShadow: "0 4px 12px rgba(239,68,68,0.3)",
+                }}>
+                  <Trash2 style={{ width: "1rem", height: "1rem" }} /> Clear All
+                </button>
               </>
             ) : (
-              <Button
-                onClick={stopRecording}
-                variant="destructive"
-                className="flex items-center gap-2 col-span-2 w-full text-lg py-6"
-              >
-                <StopCircle className="h-6 w-6" />
-                Stop Recording & Save Path
-              </Button>
+              <button onClick={stopRecording} style={{
+                width: "100%", padding: "1rem", borderRadius: "0.75rem", fontWeight: "700", fontSize: "1.1rem",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem",
+                border: "none", background: "#ef4444", color: "white",
+                boxShadow: "0 6px 20px rgba(239,68,68,0.4)",
+              }}>
+                <StopCircle style={{ width: "1.5rem", height: "1.5rem" }} /> Stop Recording &amp; Save Path
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      <Dialog open={showHouseDialog} onOpenChange={setShowHouseDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add House</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              placeholder="Enter house number"
+      {showHouseDialog && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
+        }}>
+          <div style={{
+            background: "white", borderRadius: "1.25rem", padding: "2rem",
+            width: "100%", maxWidth: "380px", boxShadow: "0 25px 60px rgba(0,0,0,0.3)",
+          }}>
+            <h2 style={{ fontSize: "1.3rem", fontWeight: "800", color: "#111827", margin: "0 0 1.25rem" }}>Add House</h2>
+            <input
+              placeholder="Enter house number (e.g. 12)"
               value={houseNumber}
               onChange={(e) => setHouseNumber(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && saveHouse()}
+              autoFocus
+              style={{
+                width: "100%", padding: "0.75rem 1rem", borderRadius: "0.75rem",
+                border: "2px solid #e5e7eb", fontSize: "1rem", outline: "none",
+                boxSizing: "border-box", marginBottom: "1.25rem",
+              }}
             />
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button onClick={() => setShowHouseDialog(false)} style={{
+                flex: 1, padding: "0.75rem", borderRadius: "0.75rem", fontWeight: "600",
+                border: "2px solid #e5e7eb", background: "white", cursor: "pointer", color: "#374151",
+              }}>Cancel</button>
+              <button onClick={saveHouse} style={{
+                flex: 1, padding: "0.75rem", borderRadius: "0.75rem", fontWeight: "700",
+                border: "none", background: "#2563eb", color: "white", cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
+              }}>Save House</button>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowHouseDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={saveHouse}>Save House</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   )
 }

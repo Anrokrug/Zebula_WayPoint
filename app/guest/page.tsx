@@ -4,15 +4,12 @@ import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import { ArrowLeft, Navigation, Info } from "lucide-react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 const GuestMapComponent = dynamic(() => import("@/components/GuestMapComponent"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-gray-100">
-      <p className="text-gray-600">Loading map...</p>
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6" }}>
+      <p style={{ color: "#6b7280" }}>Loading map...</p>
     </div>
   ),
 })
@@ -43,7 +40,6 @@ export default function GuestPage() {
     const savedHouses = localStorage.getItem("farm_houses")
     const savedRoads = localStorage.getItem("farm_roads")
     const savedReception = localStorage.getItem("farm_reception")
-
     if (savedHouses) setHouses(JSON.parse(savedHouses))
     if (savedRoads) setRoads(JSON.parse(savedRoads))
     if (savedReception) setReception(JSON.parse(savedReception))
@@ -51,110 +47,110 @@ export default function GuestPage() {
 
   useEffect(() => {
     loadData()
-
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "farm_last_update") {
-        loadData()
-      }
+      if (e.key === "farm_last_update") loadData()
     }
-
     window.addEventListener("storage", handleStorageChange)
-
-    const interval = setInterval(() => {
-      loadData()
-    }, 3000)
-
+    const interval = setInterval(loadData, 3000)
     return () => {
       window.removeEventListener("storage", handleStorageChange)
       clearInterval(interval)
     }
   }, [])
 
+  const sortedHouses = [...houses].sort((a, b) =>
+    a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: "base" })
+  )
+
   if (!reception || houses.length === 0) {
     return (
-      <div className="h-screen flex flex-col">
-        <header className="bg-green-600 text-white p-4 shadow-lg">
-          <div className="flex items-center gap-3 max-w-7xl mx-auto">
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="text-white hover:bg-green-700">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", fontFamily: "system-ui, sans-serif" }}>
+        <header style={{ background: "linear-gradient(135deg, #059669, #0d9488)", color: "white", padding: "0.75rem 1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <Link href="/" style={{ color: "white", background: "rgba(255,255,255,0.15)", borderRadius: "0.5rem", padding: "0.4rem", display: "flex" }}>
+              <ArrowLeft style={{ width: "1.2rem", height: "1.2rem" }} />
             </Link>
             <div>
-              <h1 className="text-xl font-bold">Find Your House</h1>
-              <p className="text-xs text-green-100">Zebula Golf Estate And Spa</p>
+              <h1 style={{ fontSize: "1.1rem", fontWeight: "800", margin: 0 }}>Find Your House</h1>
+              <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.8)", margin: 0 }}>Zebula Golf Estate And Spa</p>
             </div>
           </div>
         </header>
-
-        <div className="flex-1 flex items-center justify-center p-6 bg-gray-50">
-          <Alert className="max-w-md">
-            <Info className="h-4 w-4" />
-            <AlertTitle>Setup Required</AlertTitle>
-            <AlertDescription>
-              The admin needs to set up the reception location and houses first. Please contact the farm administrator.
-            </AlertDescription>
-          </Alert>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem", background: "#f9fafb" }}>
+          <div style={{
+            background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "1rem",
+            padding: "1.5rem", maxWidth: "420px", textAlign: "center",
+          }}>
+            <Info style={{ width: "2rem", height: "2rem", color: "#2563eb", margin: "0 auto 0.75rem" }} />
+            <h3 style={{ fontWeight: "700", color: "#1e40af", margin: "0 0 0.5rem" }}>Setup Required</h3>
+            <p style={{ color: "#1d4ed8", margin: 0, fontSize: "0.9rem" }}>
+              The admin needs to set up the reception location and houses first. Please contact the estate administrator.
+            </p>
+          </div>
         </div>
       </div>
     )
   }
 
-  const sortedHouses = [...houses].sort((a, b) =>
-    a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: "base" }),
-  )
-
   return (
-    <div className="h-screen flex flex-col">
-      <header className="bg-green-600 text-white p-4 shadow-lg">
-        <div className="flex items-center gap-3 max-w-7xl mx-auto">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-green-700">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", fontFamily: "system-ui, sans-serif" }}>
+      {/* Header */}
+      <header style={{ background: "linear-gradient(135deg, #059669, #0d9488)", color: "white", padding: "0.75rem 1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", maxWidth: "1280px", margin: "0 auto" }}>
+          <Link href="/" style={{ color: "white", background: "rgba(255,255,255,0.15)", borderRadius: "0.5rem", padding: "0.4rem", display: "flex" }}>
+            <ArrowLeft style={{ width: "1.2rem", height: "1.2rem" }} />
           </Link>
           <div>
-            <h1 className="text-xl font-bold">Find Your House</h1>
-            <p className="text-xs text-green-100">Zebula Golf Estate And Spa</p>
+            <h1 style={{ fontSize: "1.1rem", fontWeight: "800", margin: 0 }}>Find Your House</h1>
+            <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.8)", margin: 0 }}>Zebula Golf Estate And Spa</p>
           </div>
         </div>
       </header>
 
-      <div className="bg-white border-b shadow-sm p-4">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Select Your House:</p>
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex gap-2 pb-2">
-              {sortedHouses.map((house) => (
-                <Button
-                  key={house.id}
-                  onClick={() => setSelectedHouse(house)}
-                  variant={selectedHouse?.id === house.id ? "default" : "outline"}
-                  className="min-w-[80px]"
-                >
-                  {house.number}
-                </Button>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+      {/* House selector */}
+      <div style={{ background: "white", borderBottom: "2px solid #e5e7eb", padding: "0.75rem 1rem", flexShrink: 0, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+        <p style={{ fontSize: "0.85rem", fontWeight: "700", color: "#374151", margin: "0 0 0.6rem" }}>Select Your House Number:</p>
+        <div style={{ display: "flex", gap: "0.5rem", overflowX: "auto", paddingBottom: "0.4rem" }}>
+          {sortedHouses.map((house) => (
+            <button
+              key={house.id}
+              onClick={() => setSelectedHouse(house)}
+              style={{
+                minWidth: "3.5rem", padding: "0.5rem 0.75rem", borderRadius: "0.6rem", fontWeight: "700",
+                fontSize: "0.9rem", cursor: "pointer", flexShrink: 0,
+                border: selectedHouse?.id === house.id ? "none" : "2px solid #d1fae5",
+                background: selectedHouse?.id === house.id ? "#059669" : "white",
+                color: selectedHouse?.id === house.id ? "white" : "#059669",
+                boxShadow: selectedHouse?.id === house.id ? "0 4px 12px rgba(5,150,105,0.4)" : "none",
+              }}
+            >
+              {house.number}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="flex-1 relative">
+      {/* Map */}
+      <div style={{ flex: 1, position: "relative" }}>
         <GuestMapComponent houses={houses} roads={roads} reception={reception} selectedHouse={selectedHouse} />
       </div>
 
+      {/* Navigation info */}
       {selectedHouse && (
-        <div className="bg-white border-t shadow-lg p-4">
-          <div className="max-w-7xl mx-auto">
-            <Alert>
-              <Navigation className="h-4 w-4" />
-              <AlertTitle>Navigating to House {selectedHouse.number}</AlertTitle>
-              <AlertDescription>
-                Follow the green line on the map from the reception (blue marker) to your house (red marker).
-              </AlertDescription>
-            </Alert>
+        <div style={{ background: "white", borderTop: "2px solid #e5e7eb", padding: "0.75rem 1rem", flexShrink: 0 }}>
+          <div style={{
+            background: "#ecfdf5", border: "1px solid #6ee7b7", borderRadius: "0.75rem",
+            padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.75rem",
+          }}>
+            <Navigation style={{ width: "1.2rem", height: "1.2rem", color: "#059669", flexShrink: 0 }} />
+            <div>
+              <p style={{ fontWeight: "700", color: "#065f46", margin: "0 0 0.15rem", fontSize: "0.9rem" }}>
+                Navigating to House {selectedHouse.number}
+              </p>
+              <p style={{ color: "#047857", margin: 0, fontSize: "0.8rem" }}>
+                Follow the green route on the map from the Clubhouse to your house.
+              </p>
+            </div>
           </div>
         </div>
       )}

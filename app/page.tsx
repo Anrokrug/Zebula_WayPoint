@@ -1,63 +1,170 @@
 "use client"
 
 import Link from "next/link"
-import { Home, UserCog, Users } from "lucide-react"
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center p-4">
-      <div className="absolute top-20 left-20 w-64 h-64 bg-yellow-400/20 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl" />
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "1rem",
+      fontFamily: "system-ui, -apple-system, sans-serif",
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      {/* Decorative blobs */}
+      <div style={{
+        position: "absolute", top: "5rem", left: "5rem",
+        width: "16rem", height: "16rem",
+        background: "rgba(250, 204, 21, 0.15)",
+        borderRadius: "50%", filter: "blur(60px)", pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute", bottom: "5rem", right: "5rem",
+        width: "24rem", height: "24rem",
+        background: "rgba(59, 130, 246, 0.15)",
+        borderRadius: "50%", filter: "blur(80px)", pointerEvents: "none",
+      }} />
 
-      {/* Content */}
-      <div className="max-w-md w-full space-y-8 relative z-10">
-        <div className="text-center">
-          <div className="mx-auto h-20 w-20 bg-white rounded-full flex items-center justify-center shadow-xl">
-            <Home className="h-10 w-10 text-emerald-600" />
+      <div style={{ maxWidth: "28rem", width: "100%", position: "relative", zIndex: 10 }}>
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <div style={{
+            width: "5rem", height: "5rem",
+            background: "white",
+            borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            margin: "0 auto 1.5rem",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+          }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
           </div>
-          <h1 className="mt-6 text-4xl font-bold text-white">Zebula Golf Estate And Spa</h1>
-          <p className="mt-2 text-xl text-emerald-50">Property Navigation</p>
-        </div>
-
-        <div className="space-y-4">
-          <Link
-            href="/admin"
-            className="flex flex-col items-center gap-3 w-full bg-white hover:bg-emerald-50 text-gray-900 rounded-2xl p-6 shadow-2xl transition-all transform hover:scale-105 hover:shadow-emerald-500/50"
-          >
-            <div className="h-14 w-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-              <UserCog className="h-8 w-8 text-white" />
-            </div>
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900">ADMIN MODE</h2>
-              <p className="text-sm text-gray-600 mt-1">Set up roads, houses, and reception</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/guest"
-            className="flex flex-col items-center gap-3 w-full bg-white hover:bg-emerald-50 text-gray-900 rounded-2xl p-6 shadow-2xl transition-all transform hover:scale-105 hover:shadow-emerald-500/50"
-          >
-            <div className="h-14 w-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center">
-              <Users className="h-8 w-8 text-white" />
-            </div>
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900">GUEST MODE</h2>
-              <p className="text-sm text-gray-600 mt-1">Find your way to your house</p>
-            </div>
-          </Link>
-        </div>
-
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-xl">
-          <p className="text-sm text-gray-700 text-center leading-relaxed">
-            Welcome to our estate! Select Guest Mode to navigate to your accommodation.
+          <h1 style={{
+            fontSize: "2rem", fontWeight: "800", color: "white",
+            textShadow: "0 2px 8px rgba(0,0,0,0.3)", lineHeight: 1.2,
+            marginBottom: "0.5rem",
+          }}>
+            Zebula Golf Estate
+          </h1>
+          <p style={{ fontSize: "1.1rem", color: "rgba(255,255,255,0.9)", fontWeight: "500" }}>
+            And Spa
+          </p>
+          <p style={{ fontSize: "0.95rem", color: "rgba(255,255,255,0.75)", marginTop: "0.25rem" }}>
+            Property Navigation
           </p>
         </div>
 
-        <div className="text-center pt-4">
-          <p className="text-sm text-white drop-shadow-md">
-            Developed by <span className="font-semibold">Anro Kruger</span>
+        {/* Buttons */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {/* Admin Card */}
+          <Link href="/admin" style={{ textDecoration: "none" }}>
+            <div style={{
+              background: "white",
+              borderRadius: "1.25rem",
+              padding: "1.5rem",
+              display: "flex", alignItems: "center", gap: "1.25rem",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+              border: "2px solid transparent",
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"
+              ;(e.currentTarget as HTMLDivElement).style.boxShadow = "0 20px 50px rgba(0,0,0,0.2)"
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"
+              ;(e.currentTarget as HTMLDivElement).style.boxShadow = "0 10px 40px rgba(0,0,0,0.15)"
+            }}>
+              <div style={{
+                width: "3.5rem", height: "3.5rem", borderRadius: "50%", flexShrink: 0,
+                background: "linear-gradient(135deg, #3b82f6, #4f46e5)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 4px 15px rgba(79, 70, 229, 0.4)",
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                  <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/>
+                  <path d="M19 11l2 2-4 4-2-2"/>
+                </svg>
+              </div>
+              <div>
+                <h2 style={{ fontSize: "1.3rem", fontWeight: "800", color: "#111827", margin: 0 }}>
+                  ADMIN MODE
+                </h2>
+                <p style={{ fontSize: "0.85rem", color: "#6b7280", margin: "0.2rem 0 0" }}>
+                  Set up roads, houses &amp; reception
+                </p>
+              </div>
+            </div>
+          </Link>
+
+          {/* Guest Card */}
+          <Link href="/guest" style={{ textDecoration: "none" }}>
+            <div style={{
+              background: "white",
+              borderRadius: "1.25rem",
+              padding: "1.5rem",
+              display: "flex", alignItems: "center", gap: "1.25rem",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"
+              ;(e.currentTarget as HTMLDivElement).style.boxShadow = "0 20px 50px rgba(0,0,0,0.2)"
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"
+              ;(e.currentTarget as HTMLDivElement).style.boxShadow = "0 10px 40px rgba(0,0,0,0.15)"
+            }}>
+              <div style={{
+                width: "3.5rem", height: "3.5rem", borderRadius: "50%", flexShrink: 0,
+                background: "linear-gradient(135deg, #059669, #0d9488)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 4px 15px rgba(5, 150, 105, 0.4)",
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+              </div>
+              <div>
+                <h2 style={{ fontSize: "1.3rem", fontWeight: "800", color: "#111827", margin: 0 }}>
+                  GUEST MODE
+                </h2>
+                <p style={{ fontSize: "0.85rem", color: "#6b7280", margin: "0.2rem 0 0" }}>
+                  Find your way to your house
+                </p>
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        {/* Welcome box */}
+        <div style={{
+          background: "rgba(255,255,255,0.15)",
+          backdropFilter: "blur(10px)",
+          borderRadius: "1rem",
+          padding: "1rem 1.5rem",
+          marginTop: "1.5rem",
+          border: "1px solid rgba(255,255,255,0.3)",
+        }}>
+          <p style={{ color: "white", fontSize: "0.9rem", textAlign: "center", margin: 0, lineHeight: 1.6 }}>
+            Welcome to Zebula Golf Estate And Spa! Select Guest Mode to navigate to your accommodation.
           </p>
         </div>
+
+        {/* Developer credit */}
+        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.7)", fontSize: "0.8rem", marginTop: "1.5rem" }}>
+          Developed by <span style={{ fontWeight: "700", color: "white" }}>Anro Kruger</span>
+        </p>
       </div>
     </div>
   )
