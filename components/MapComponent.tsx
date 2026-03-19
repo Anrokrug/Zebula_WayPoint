@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 
+import "leaflet/dist/leaflet.css"
+
 let L: any = null
 
 interface Location {
@@ -276,8 +278,8 @@ export default function MapComponent({
   }, [currentLocation, leafletLoaded])
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      <div ref={mapContainerRef} style={{ width: "100%", height: "100%", minHeight: "500px" }} />
+    <div style={{ width: "100%", height: "100%", position: "relative", minHeight: 0 }}>
+      <div ref={mapContainerRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0 }} />
       {/* Re-center button */}
       <button
         onClick={() => {

@@ -268,8 +268,8 @@ export default function GuestMapComponent({
   }, [currentLocation, leafletLoaded])
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      <div ref={mapContainerRef} style={{ width: "100%", height: "100%", minHeight: "500px" }} />
+    <div style={{ width: "100%", height: "100%", position: "relative", minHeight: 0 }}>
+      <div ref={mapContainerRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0 }} />
 
       {/* Follow Me button */}
       <button

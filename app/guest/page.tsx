@@ -131,7 +131,7 @@ export default function GuestPage() {
       </div>
 
       {/* Map */}
-      <div style={{ flex: 1, position: "relative" }}>
+      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <GuestMapComponent houses={houses} roads={roads} reception={reception} selectedHouse={selectedHouse} />
       </div>
 
